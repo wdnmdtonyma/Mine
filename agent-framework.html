@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>一次任务的幕后 · Agent 框架</title>
+  <style>
+    :root {
+      --ink: #1c1917;
+      --muted: #78716c;
+      --faint: #a8a29e;
+      --line: #e7e5e4;
+      --paper: #ffffff;
+      --page: #f5f3ef;
+      --panel: #fbfaf7;
+      --user: #57534e;
+      --hook: #9a6a38;
+      --pack: #3b6ea8;
+      --call: #4f5d9a;
+      --model: #3d7a58;
+      --tool: #6a5a8a;
+      --meta: #8a4a5a;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--page);
+      color: var(--ink);
+      font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button {
+      appearance: none;
+      -webkit-appearance: none;
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      text-align: left;
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(400px, 34vw);
+      height: 100vh;
+    }
+    .board {
+      overflow: auto;
+      padding: 32px 40px 72px;
+    }
+    .stage { max-width: 840px; }
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    .hero .kicker {
+      margin: 0 0 8px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      color: var(--faint);
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.15;
+    }
+    .hero p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 460px;
+    }
+    .play {
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 999px;
+      padding: 10px 18px;
+      box-shadow: 0 1px 0 rgba(28,25,23,.04);
+    }
+    .play:hover { border-color: #c9c4bb; }
+    .play.is-on { border-color: var(--ink); color: var(--ink); }
+
+    .map {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 2px 0;
+      margin: 0 0 22px;
+      font-size: 12px;
+    }
+    .map button {
+      padding: 5px 8px;
+      border-radius: 6px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .map button:hover { color: var(--ink); background: #fff; }
+    .map button.is-on { color: var(--ink); background: #fff; box-shadow: 0 0 0 1px var(--ink); }
+    .map i {
+      font-style: normal;
+      color: var(--faint);
+      margin: 0 2px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+
+    .chat {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .bubble {
+      max-width: 92%;
+      background: var(--paper);
+      border: 1px solid #e4e1db;
+      border-radius: 14px;
+      padding: 12px 14px 13px;
+      box-shadow: 0 1px 0 rgba(28,25,23,.04);
+    }
+    .bubble.you { align-self: flex-end; border-bottom-right-radius: 4px; }
+    .bubble.bot { align-self: flex-start; border-bottom-left-radius: 4px; }
+    .bubble i {
+      display: block;
+      font-style: normal;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--faint);
+      margin-bottom: 4px;
+    }
+    .bubble p { margin: 0; font-size: 14px; line-height: 1.55; }
+    .bubble p.wait { color: var(--faint); }
+
+    .console-h {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border: 1px solid #e4e1db;
+      border-radius: 12px;
+      background: var(--paper);
+      margin-bottom: 18px;
+      box-shadow: 0 1px 0 rgba(28,25,23,.04);
+    }
+    .console-h .dots { display: flex; gap: 6px; }
+    .console-h .dots i {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #e7e5e4; display: block;
+    }
+    .console-h .dots i:nth-child(1) { background: #e8d5d0; }
+    .console-h .dots i:nth-child(2) { background: #e6dfc8; }
+    .console-h .dots i:nth-child(3) { background: #d5e0d4; }
+    .console-h .title {
+      flex: 1;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+    .console-h .stat {
+      font-size: 11px;
+      color: var(--faint);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      padding-top: 8px;
+    }
+    .band {
+      --c: #57534e;
+      --wash: #fafaf9;
+      --stroke: #e7e5e4;
+      position: relative;
+      margin-top: 4px;
+      padding: 26px 10px 12px;
+      background: var(--wash);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+    }
+    .l1 { --c: #57534e; --wash: #f7f6f4; --stroke: #e7e5e4; }
+    .l2 { --c: #3b6ea8; --wash: #f3f6fa; --stroke: #d5dee8; }
+    .l3 { --c: #3d7a58; --wash: #f2f7f4; --stroke: #d3e4da; }
+    .l4 { --c: #6a5a8a; --wash: #f5f3f7; --stroke: #ddd6e4; }
+    .l5 { --c: #8a4a5a; --wash: #f8f3f4; --stroke: #e4d5d8; }
+    .band-h {
+      position: absolute;
+      top: -11px;
+      left: 18px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 0 8px;
+      background: var(--page);
+      color: var(--c);
+    }
+    .band-h.is-on { color: var(--ink); }
+    .band-h:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+    .idx {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      color: var(--faint);
+    }
+    .band-h h2 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+    .band-h .sub {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+    .join {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 28px;
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 1px 100%;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    .join span {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: var(--faint);
+      background: var(--page);
+      padding: 0 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 36px 72px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      width: 100%;
+      padding: 8px 16px;
+      border-left: 2px solid transparent;
+      transition: background .12s, border-color .12s, opacity .2s;
+    }
+    .row:hover { background: rgba(255,255,255,.72); }
+    .row.is-on {
+      background: #f6f3ee;
+      border-left-color: var(--ink);
+    }
+    .row:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+    .stack.is-playing .row:not(.seen),
+    .stack.is-playing .cell:not(.seen) { opacity: .32; }
+    .n {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      color: var(--faint);
+      padding-top: 3px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 3px 7px;
+      border-radius: 4px;
+      margin-top: 1px;
+      width: fit-content;
+    }
+    .b-user { color: var(--user); background: #f3f1ee; }
+    .b-hook { color: var(--hook); background: #f7f3ec; }
+    .b-pack { color: var(--pack); background: #f3f6fa; }
+    .b-call { color: var(--call); background: #f3f4f9; }
+    .b-model { color: var(--model); background: #f2f7f4; }
+    .b-tool { color: var(--tool); background: #f5f3f7; }
+    .b-done { color: var(--faint); background: #f5f5f4; }
+    .line { min-width: 0; }
+    .line b {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.35;
+    }
+    .line p {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .line code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      background: #f0eee8;
+      padding: 0 4px;
+      border-radius: 3px;
+    }
+
+    .inspector {
+      margin: 4px 8px 8px 8px;
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--paper);
+    }
+    .g + .g { border-top: 1px solid #eeeae4; }
+    .g-h {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 10px 12px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--c);
+    }
+    .g-h span {
+      font-weight: 400;
+      letter-spacing: 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .cycle {
+      margin: 6px 6px;
+      background: var(--paper);
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .cycle-h {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--c);
+      background: rgba(255,255,255,.55);
+      border-bottom: 1px solid var(--stroke);
+    }
+    .cycle-h span {
+      font-weight: 400;
+      letter-spacing: 0;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .insp-h {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      background: #f6f4ef;
+    }
+    .insp-h strong { color: var(--ink); font-weight: 600; letter-spacing: 0; }
+    .mix {
+      display: flex;
+      height: 8px;
+      margin: 10px 12px 6px;
+      border-radius: 99px;
+      overflow: hidden;
+      background: #eeeae4;
+    }
+    .mix i { display: block; height: 100%; }
+    .mix-l {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      padding: 0 12px 10px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .mix-l u {
+      text-decoration: none;
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 2px;
+      margin-right: 5px;
+      vertical-align: 0;
+    }
+    .g .cell:first-child { border-top: 0; }
+    .cells { display: flex; flex-direction: column; }
+    .cell {
+      display: grid;
+      grid-template-columns: 148px 72px minmax(0, 1fr) 72px;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      border-top: 1px solid #eeeae4;
+      width: 100%;
+    }
+    .cell:hover { background: #fff; }
+    .cell.is-on { background: #fff; box-shadow: inset 2px 0 0 var(--ink); }
+    .cell b { font-size: 12.5px; font-weight: 600; letter-spacing: -0.01em; }
+    .cell em {
+      font-style: normal;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: var(--pack);
+    }
+    .cell.meta em { color: var(--meta); }
+    .cell p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .cell .sz {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      color: var(--faint);
+      text-align: right;
+    }
+    .cell.meta { background: #fbf6f7; }
+    .cell.meta:hover, .cell.meta.is-on { background: #fff; }
+
+    .alt .row {
+      padding-left: 8px;
+      padding-right: 8px;
+      grid-template-columns: 36px 72px minmax(0, 1fr);
+    }
+    .alt .row .n { display: none; }
+    .alt .row { grid-template-columns: 72px minmax(0, 1fr); }
+    .alt .row.is-on { background: #fff; border-left-color: var(--meta); }
+
+    .panel {
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .panel-h {
+      padding: 28px 28px 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .panel-h h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.2;
+    }
+    .panel-h .tag {
+      margin-top: 6px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--faint);
+    }
+    .panel-x {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      color: var(--faint);
+      font-size: 18px;
+      line-height: 28px;
+      text-align: center;
+    }
+    .panel-x:hover { color: var(--ink); background: #f0eee8; }
+    .panel-b {
+      overflow: auto;
+      padding: 4px 28px 48px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #44403c;
+    }
+    .panel-b .toc {
+      display: flex;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: linear-gradient(var(--panel) 65%, rgba(251,250,247,0));
+      padding: 0 0 16px;
+      margin: 0 0 8px;
+    }
+    .panel-b .toc button {
+      font-size: 12px;
+      color: var(--faint);
+      margin: 0 14px 8px 0;
+    }
+    .panel-b .toc button:hover { color: var(--ink); }
+    .panel-b .lead {
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.55;
+      margin: 0 0 22px;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+    .panel-b h3 {
+      margin: 28px 0 10px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--faint);
+    }
+    .panel-b h3:first-of-type { margin-top: 4px; }
+    .panel-b p { margin: 0 0 12px; }
+    .panel-b ul, .panel-b ol { margin: 0 0 8px; padding: 0; list-style: none; }
+    .panel-b .cards > li {
+      padding: 12px 0;
+      border-bottom: 1px solid #eeeae4;
+    }
+    .panel-b .cards > li:first-child { padding-top: 2px; }
+    .panel-b .cards > li .k {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      margin: 0 0 3px;
+      line-height: 1.35;
+    }
+    .panel-b .cards > li .d {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .panel-b .says > li {
+      padding: 0 0 0 1em;
+      font-size: 14px;
+      line-height: 1.6;
+      text-indent: -1em;
+    }
+    .panel-b .bounds > li {
+      padding: 8px 0;
+      border-bottom: 1px solid #eeeae4;
+      font-size: 13.5px;
+      color: #57534e;
+      line-height: 1.65;
+    }
+    .panel-b .bounds > li::before { content: "—  "; color: #b45309; }
+    .panel-b .talk {
+      margin: 0;
+      padding: 16px 0 0;
+      border-top: 1px solid var(--line);
+      font-size: 14.5px;
+      line-height: 1.8;
+      color: var(--ink);
+    }
+    .panel-b code {
+      font-size: 12px;
+      background: #f0eee8;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #44403c;
+    }
+    .empty .lead { font-weight: 500; }
+    #catalog { display: none; }
+
+    @media (max-width: 1080px) {
+      .cell { grid-template-columns: 1fr; gap: 2px; }
+      .cell .sz { text-align: left; }
+      .inspector { margin-left: 16px; }
+    }
+    @media (max-width: 960px) {
+      .shell { grid-template-columns: 1fr; }
+      .panel {
+        position: fixed;
+        inset: auto 0 0 0;
+        height: 48vh;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        z-index: 4;
+      }
+      .board { padding: 24px 20px 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="board">
+      <div class="stage">
+        <div class="hero">
+          <div>
+            <p class="kicker">INTERNAL SHARE · 一次任务的幕后</p>
+            <h1>你说了一句话，<br>机器在干什么</h1>
+            <p>上面是聊天。下面按层级走完这一次任务。点色块标题或其中一行，右侧讲这一层。</p>
+          </div>
+          <button class="play" id="play" type="button">回放一次</button>
+        </div>
+
+        <nav class="map" aria-label="层级">
+          <button type="button" data-id="layer-in">01 进门</button>
+          <i>→</i>
+          <button type="button" data-id="layer-pack">02 装箱</button>
+          <i>→</i>
+          <button type="button" data-id="layer-loop">03 循环</button>
+          <i>→</i>
+          <button type="button" data-id="layer-stop">04 停</button>
+          <i>→</i>
+          <button type="button" data-id="layer-alt">05 另一条路</button>
+        </nav>
+
+        <div class="chat">
+          <div class="bubble you">
+            <i>你</i>
+            <p>把 utils.ts 重构一下</p>
+          </div>
+          <div class="bubble bot">
+            <i>AGENT</i>
+            <p id="botp" class="wait">还没开口。它先在装箱。</p>
+          </div>
+        </div>
+
+        <div class="console-h">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="title">CONSOLE · 这一次任务 · 五层</span>
+          <span class="stat" id="stat">点一层标题，或其中一行</span>
+        </div>
+
+        <div class="stack" id="log">
+          <section class="band l1">
+            <button class="band-h" data-id="layer-in" type="button">
+              <span class="idx">01</span>
+              <h2>进门</h2>
+              <span class="sub">用户开口，模型还没看见</span>
+            </button>
+            <button class="row" data-id="user" type="button">
+              <span class="n">01</span>
+              <span class="badge b-user">用户</span>
+              <span class="line"><b>把 utils.ts 重构一下</b><p>先记下这句话。模型现在还什么都没看见。</p></span>
+            </button>
+            <button class="row" data-id="hook-in" type="button">
+              <span class="n">02</span>
+              <span class="badge b-hook">Hook</span>
+              <span class="line"><b>开口这一刻，可以插一脚</b><p>可改写、可附加。本例附上：现在几点、人在哪个目录。</p></span>
+            </button>
+          </section>
+
+          <div class="join"><span>开始装箱</span></div>
+
+          <section class="band l2">
+            <button class="band-h" data-id="layer-pack" type="button">
+              <span class="idx">02</span>
+              <h2>装箱</h2>
+              <span class="sub">模型这一次会看见的全部 · 三层往下越来越容易变</span>
+            </button>
+            <button class="row" data-id="pack" type="button">
+              <span class="n">03</span>
+              <span class="badge b-pack">装箱</span>
+              <span class="line"><b>拼一只发给模型的包裹</b><p>约 12,400 字。你那句只占很小一块。点下面三层看 Prompt / Skill / MCP 各落在哪。</p></span>
+            </button>
+
+            <div class="inspector" aria-label="发给模型的包裹">
+              <div class="insp-h">
+                <span>REQUEST PAYLOAD · <strong>第 1 次问模型</strong></span>
+                <span>~12,400 字</span>
+              </div>
+              <div class="mix" title="字数从哪来">
+                <i style="width:54%;background:#3b6ea8"></i>
+                <i style="width:16%;background:#9a6a38"></i>
+                <i style="width:12%;background:#4f5d9a"></i>
+                <i style="width:10%;background:#8a4a5a"></i>
+                <i style="width:8%;background:#3d7a58"></i>
+              </div>
+              <div class="mix-l">
+                <span><u style="background:#3b6ea8"></u>铁律 54%</span>
+                <span><u style="background:#9a6a38"></u>工具说明书 16%</span>
+                <span><u style="background:#4f5d9a"></u>项目约定 12%</span>
+                <span><u style="background:#8a4a5a"></u>Skill 目录 10%</span>
+                <span><u style="background:#3d7a58"></u>你的话 8%</span>
+              </div>
+
+              <div class="g">
+                <div class="g-h">一层 · 指令 <span>Prompt 落在这里 · 当成真理 · 该被缓存</span></div>
+                <div class="cells">
+                  <button class="cell" data-id="sys" type="button">
+                    <b>system prompt</b><em>铁律</em>
+                    <p>我是谁、听谁的、怎么写代码。不要塞会变的东西。</p>
+                    <span class="sz">8,120</span>
+                  </button>
+                  <button class="cell" data-id="cwd" type="button">
+                    <b>当前目录</b><em>环境</em>
+                    <p><code>/Users/you/proj</code> · 从这里去找项目说明书和 Skill。</p>
+                    <span class="sz">140</span>
+                  </button>
+                  <button class="cell" data-id="md" type="button">
+                    <b>AGENTS.md</b><em>注入</em>
+                    <p>从当前目录读进来。怎么构建、测什么、别动哪。</p>
+                    <span class="sz">1,840</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="g">
+                <div class="g-h">二层 · 作业与手 <span>Skill 找作业 · ToolSearch 找工具 · MCP 是新手</span></div>
+                <div class="cells">
+                  <button class="cell" data-id="skills" type="button">
+                    <b>Skill 目录</b><em>6 张卡片</em>
+                    <p>只放名字和「何时用我」。正文还没装，要用再取。</p>
+                    <span class="sz">620</span>
+                  </button>
+                  <button class="cell" data-id="tools" type="button">
+                    <b>常驻工具</b><em>7 份说明书</em>
+                    <p>Read / Edit / Bash / Glob / Grep，每轮都可能用。</p>
+                    <span class="sz">2,280</span>
+                  </button>
+                  <button class="cell meta" data-id="skill-tool" type="button">
+                    <b>Skill</b><em>找作业</em>
+                    <p>模型用来打开某张卡片的正文。目录常驻，作业包按需。</p>
+                    <span class="sz">常驻</span>
+                  </button>
+                  <button class="cell meta" data-id="toolsearch" type="button">
+                    <b>ToolSearch</b><em>找工具</em>
+                    <p>41 个 MCP 工具现在只有名字。要用，先用它召回说明书。</p>
+                    <span class="sz">常驻</span>
+                  </button>
+                  <button class="cell" data-id="mcp" type="button">
+                    <b>延迟工具</b><em>41 个名字</em>
+                    <p>工单、表格、发消息……先不给说明书，免得把脑子撑爆。</p>
+                    <span class="sz">880</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="g">
+                <div class="g-h">三层 · 对话 <span>只追加，不改写 · 现在只有你一句</span></div>
+                <div class="cells">
+                  <button class="cell" data-id="msg" type="button">
+                    <b>messages</b><em>对话</em>
+                    <p>现在只有你刚那一句。下一轮会多出工具结果。</p>
+                    <span class="sz">48</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button class="row" data-id="hook-send" type="button">
+              <span class="n">04</span>
+              <span class="badge b-hook">Hook</span>
+              <span class="line"><b>要发出去了，再贴一张纸条</b><p>本轮提醒：动手模式、还剩几个待办。这种话绝不能写进铁律。</p></span>
+            </button>
+          </section>
+
+          <div class="join"><span>发给模型</span></div>
+
+          <section class="band l3">
+            <button class="band-h" data-id="layer-loop" type="button">
+              <span class="idx">03</span>
+              <h2>循环</h2>
+              <span class="sub">一轮任务套着三次采样 · 问 → 动手 → 再问</span>
+            </button>
+
+            <div class="cycle">
+              <div class="cycle-h">采样 #1 · 先读 <span>问模型 → 开口 → Hook → 跑工具</span></div>
+              <button class="row" data-id="call1" type="button">
+                <span class="n">05</span>
+                <span class="badge b-call">问模型</span>
+                <span class="line"><b>第 1 次采样</b><p>把刚装好的箱子流式发出去。边收边看：对人说，还是要调工具。</p></span>
+              </button>
+              <button class="row" data-id="model1" type="button">
+                <span class="n">06</span>
+                <span class="badge b-model">模型</span>
+                <span class="line"><b>「我先读一下这个文件」</b><p>点了 <code>Read</code> · <code>utils.ts</code>。任务没完，只是这一次开口完了。</p></span>
+              </button>
+              <button class="row" data-id="hook-pre" type="button">
+                <span class="n">07</span>
+                <span class="badge b-hook">Hook</span>
+                <span class="line"><b>动手前再过一道门</b><p>PreToolUse：可拦、可改参数。读文件，本例放行。</p></span>
+              </button>
+              <button class="row" data-id="tool-read" type="button">
+                <span class="n">08</span>
+                <span class="badge b-tool">工具</span>
+                <span class="line"><b>Read · 412 行写回历史</b><p>失败也会写成结果喂回去。好的报错本身是产品。</p></span>
+              </button>
+            </div>
+
+            <div class="cycle">
+              <div class="cycle-h">采样 #2 · 再改 <span>再装箱 → 再问 → 改文件</span></div>
+              <button class="row" data-id="pack2" type="button">
+                <span class="n">09</span>
+                <span class="badge b-pack">再装</span>
+                <span class="line"><b>箱子多了一条工具结果</b><p>模型不记事。每一次问，都要把历史重新带上。</p></span>
+              </button>
+              <button class="row" data-id="call2" type="button">
+                <span class="n">10</span>
+                <span class="badge b-call">问模型</span>
+                <span class="line"><b>第 2 次采样</b><p>这回它看见文件内容了，才能动手改。</p></span>
+              </button>
+              <button class="row" data-id="model2" type="button">
+                <span class="n">11</span>
+                <span class="badge b-model">模型</span>
+                <span class="line"><b>点了 Edit</b><p>精确替换。文件若已被别人改过，会大声失败，让它重读。</p></span>
+              </button>
+              <button class="row" data-id="tool-edit" type="button">
+                <span class="n">12</span>
+                <span class="badge b-tool">工具</span>
+                <span class="line"><b>Edit · 改成功</b><p>权限门：允许 / 问人 / 拒绝。拒绝不是任务失败，是换路。</p></span>
+              </button>
+            </div>
+
+            <div class="cycle">
+              <div class="cycle-h">采样 #3 · 对人说 <span>看见改成功了 · 不再要工具</span></div>
+              <button class="row" data-id="call3" type="button">
+                <span class="n">13</span>
+                <span class="badge b-call">问模型</span>
+                <span class="line"><b>第 3 次采样</b><p>看见改成功了。不再要工具，开始对人说话。</p></span>
+              </button>
+              <button class="row" data-id="model3" type="button">
+                <span class="n">14</span>
+                <span class="badge b-model">模型</span>
+                <span class="line"><b>「改完了，三处调整…」</b><p>没再点工具。是不是真能停，还要过下一层。</p></span>
+              </button>
+            </div>
+          </section>
+
+          <div class="join"><span>要不要收工</span></div>
+
+          <section class="band l4">
+            <button class="band-h" data-id="layer-stop" type="button">
+              <span class="idx">04</span>
+              <h2>停不停</h2>
+              <span class="sub">不是模型说完就算 · 规则可以打回</span>
+            </button>
+            <button class="row" data-id="hook-stop" type="button">
+              <span class="n">15</span>
+              <span class="badge b-hook">Hook</span>
+              <span class="line"><b>想收工时，规则可以一票打回</b><p>测试没过、预览没出，仍可强制再跑一轮。提示词里的「请务必」替代不了这一层。</p></span>
+            </button>
+            <button class="row" data-id="done" type="button">
+              <span class="n">16</span>
+              <span class="badge b-done">结束</span>
+              <span class="line"><b>交还控制权</b><p>你看见的「忙了一阵」，是上面这四层。效果几乎全在这台循环上。</p></span>
+            </button>
+          </section>
+
+          <div class="join"><span>假如换成发周报</span></div>
+
+          <section class="band l5">
+            <button class="band-h" data-id="layer-alt" type="button">
+              <span class="idx">05</span>
+              <h2>另一条路</h2>
+              <span class="sub">同一台循环 · Skill 找作业 · ToolSearch 找手 · 发送要问人</span>
+            </button>
+            <button class="row" data-id="alt-skill" type="button">
+              <span class="n">A1</span>
+              <span class="badge b-tool">Skill</span>
+              <span class="line"><b>先打开「周报」作业包</b><p>拉数 → 核对口径 → 套模板 → 先预览再发。描述写清「何时用」，模型才找得到。</p></span>
+            </button>
+            <button class="row" data-id="alt-search" type="button">
+              <span class="n">A2</span>
+              <span class="badge b-tool">ToolSearch</span>
+              <span class="line"><b>再找到「发消息」这只手</b><p>MCP 接进来的工具，大多先只露名字。找到了，下一轮才展开说明书。</p></span>
+            </button>
+            <button class="row" data-id="alt-perm" type="button">
+              <span class="n">A3</span>
+              <span class="badge b-hook">权限</span>
+              <span class="line"><b>真发送必须问人</b><p>提示词写「请小心」挡不住。发送类动作要过门，你点了才发。</p></span>
+            </button>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div class="panel-h">
+        <div>
+          <h2 id="pt">点一层标题，或其中一行</h2>
+          <div class="tag" id="pg">右侧会讲这一层在干什么</div>
+        </div>
+        <button class="panel-x" type="button" id="px" title="回到总览">×</button>
+      </div>
+      <div class="panel-b" id="pb">
+        <div class="empty">
+          <p class="lead">听众已经知道提示词、Skill、MCP 能提升效果。缺的是看见：一句话怎么穿过五层——进门、装箱、循环、停不停，以及换成发周报会走哪几格。</p>
+          <h3>建议怎么讲</h3>
+          <ol class="cards">
+            <li><div class="k">1 · 先指顶部那条层级</div><div class="d">进门 → 装箱 → 循环 → 停。模型开口是第 3 层才发生的事。</div></li>
+            <li><div class="k">2 · 停在装箱，打开三层</div><div class="d">指令是 Prompt，作业与手是 Skill / MCP，对话是你那句话。</div></li>
+            <li><div class="k">3 · 循环里三次采样</div><div class="d">先读、再改、再对人说。失败写成结果喂回去。</div></li>
+            <li><div class="k">4 · 另一条路</div><div class="d">发周报：先打开作业包，再找到手，发送要问人。</div></li>
+          </ol>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="catalog">
+    <article id="d-home" data-title="点一层标题，或其中一行" data-tag="右侧会讲这一层在干什么">
+      <div class="empty">
+        <p class="lead">听众已经知道提示词、Skill、MCP 能提升效果。缺的是看见：一句话怎么穿过五层——进门、装箱、循环、停不停，以及换成发周报会走哪几格。</p>
+        <h3>建议怎么讲</h3>
+        <ol class="cards">
+          <li><div class="k">1 · 先指顶部那条层级</div><div class="d">进门 → 装箱 → 循环 → 停。模型开口是第 3 层才发生的事。</div></li>
+          <li><div class="k">2 · 停在装箱，打开三层</div><div class="d">指令是 Prompt，作业与手是 Skill / MCP，对话是你那句话。</div></li>
+          <li><div class="k">3 · 循环里三次采样</div><div class="d">先读、再改、再对人说。失败写成结果喂回去。</div></li>
+          <li><div class="k">4 · 另一条路</div><div class="d">发周报：先打开作业包，再找到手，发送要问人。</div></li>
+        </ol>
+      </div>
+    </article>
+
+    <article id="d-layer-in" data-title="01 · 进门" data-tag="用户开口，模型还没看见">
+      <p class="lead">聊天框里点发送，并不是模型立刻开始说话。这一层只做两件事：把话记下，以及 Hook 可以先插一脚。</p>
+      <h3>这一层在解决什么</h3>
+      <p>先落盘再处理。页面关了才恢复得回来。模型在这一层什么都还没看见。</p>
+      <h3>分享口播</h3>
+      <p>指着这一块说：大家平时以为「发送 = 模型在想」。其实它连箱子都还没装。</p>
+    </article>
+
+    <article id="d-layer-pack" data-title="02 · 装箱" data-tag="模型这一次会看见的全部">
+      <p class="lead">发给模型的不是一段话，是一只分了三层的箱子。越往下越容易变：铁律该被缓存，对话每轮都在长。</p>
+      <h3>三层</h3>
+      <ul>
+        <li><strong>一层 · 指令。</strong>system、当前目录、AGENTS.md。Prompt 落在这里。</li>
+        <li><strong>二层 · 作业与手。</strong>Skill 目录、常驻工具、Skill / ToolSearch、延迟的 MCP。</li>
+        <li><strong>三层 · 对话。</strong>现在只有你一句。下一轮会多出工具结果。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>停在这只箱子上多讲一会儿。三根杠杆的位置一次看清：Prompt 在一层，Skill 和 MCP 在二层，用户那句话在三层，而且很小。</p>
+    </article>
+
+    <article id="d-layer-loop" data-title="03 · 循环" data-tag="一轮任务套着三次采样">
+      <p class="lead">箱子发出去之后，才开始问模型。这一层里有三次采样：先读、再改、再对人说。</p>
+      <h3>每一次采样都是同一套</h3>
+      <p>问模型 → 它开口（对人说或点工具）→ 动手前过 Hook → 跑工具，结果写回 → 再装一次再问。</p>
+      <h3>分享口播</h3>
+      <p>任务结束不等于模型这一次说完了。第 1 次说「我先读」只结束这一次采样，整轮任务还在继续。</p>
+    </article>
+
+    <article id="d-layer-stop" data-title="04 · 停不停" data-tag="不是模型说完就算">
+      <p class="lead">模型说「改完了」。规则仍可一票打回。提示词里的「请务必跑测试」，替代不了这一层。</p>
+      <h3>分享口播</h3>
+      <p>偷懒和死循环，往往不是模型性格，是这道闸没调好。</p>
+    </article>
+
+    <article id="d-layer-alt" data-title="05 · 另一条路" data-tag="假如换成写周报并发群">
+      <p class="lead">同一台循环。换一句话，走的格子就从 Read / Edit，变成 Skill → ToolSearch → 权限门。</p>
+      <h3>三根杠杆</h3>
+      <ul>
+        <li><strong>项目说明书。</strong>口径、禁止编造。</li>
+        <li><strong>Skill。</strong>步骤。</li>
+        <li><strong>MCP。</strong>发消息的手。真发送必须问人。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>重构展示循环怎么转。发周报展示杠杆落在哪。两条例子不要混在一次回放里，讲完四层再翻到这里。</p>
+    </article>
+
+    <article id="d-user" data-title="用户进门" data-tag="01 · 先记下，模型还没看见">
+      <p class="lead">你在聊天框里点发送，并不是模型立刻开始说话。中间至少有：把这句话记下来，再装箱，再问模型。</p>
+      <h3>为什么先记</h3>
+      <p>先落盘再处理。页面关了、进程崩了，才恢复得回来。对你来说只是「我说了一句」；对机器来说，这是一轮任务的起点，后面会套着好几次问模型。</p>
+      <h3>分享口播</h3>
+      <p>钉死一句：模型两次调用之间什么都不记得。你看见它忙了一阵，是这台循环在转，不是它脑子里一直挂着这件事。</p>
+    </article>
+
+    <article id="d-hook-in" data-title="开口时的 Hook" data-tag="02 · 用户话进来的那一刻">
+      <p class="lead">内核在固定时刻对外开口，让别人不改源码也能插一脚。用户刚提交，是第一处。</p>
+      <h3>这一脚能干什么</h3>
+      <ul>
+        <li><strong>附加情境。</strong>当前时间、工作目录、这个人是谁。本例就是这么做的。</li>
+        <li><strong>改写这句话。</strong>比如按模板展开，或拦一句明显越权的话。</li>
+        <li><strong>什么都不做。</strong>没配 Hook，就当这层不存在。</li>
+      </ul>
+      <h3>边界</h3>
+      <ul>
+        <li>Hook 能往上下文里塞字，不等于能绕过后面的权限门。</li>
+        <li>会变的信息（时间、目录）从这里进，不要烤进 system 最前面——那会把缓存每轮打碎。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>提示词是常驻真理。Hook 是「这一刻临时贴一张纸条」。两件事不要混在一个抽屉里。</p>
+    </article>
+
+    <article id="d-pack" data-title="装箱" data-tag="03 · 模型这一次会看见的全部">
+      <p class="lead">发给模型的不是一段话，是一只按顺序装好的箱子。身份、项目约定、Skill 目录、工具说明书、你刚说的话，都在这里排队。</p>
+      <h3>看那条色带</h3>
+      <p>你那句话只占很小一块。大部分是铁律和工具说明书。所以「效果不好就改提示词」常常改错层——真正漏的，可能是项目说明书没写清，或工具太多把选择淹没了。</p>
+      <h3>三根杠杆落在哪</h3>
+      <ul>
+        <li><strong>Prompt</strong> → system 那一行。改默认怎么想、听谁的。</li>
+        <li><strong>Skill</strong> → 目录卡片 + 那个叫 Skill 的工具。改某类事怎么一步步干。</li>
+        <li><strong>MCP</strong> → 延迟工具那一行。给模型新的手，去碰工单、表格、发消息。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>停在这只箱子上多讲一会儿。后面问模型、跑工具，都是在消化这只箱子。箱子装错了，模型再聪明也是按错的材料想。</p>
+    </article>
+
+    <article id="d-sys" data-title="system prompt" data-tag="箱子 · 铁律">
+      <p class="lead">回答三个问题：我是谁、我该怎么做事、碰到矛盾听谁的。理想情况下一个会话几乎不变，所以该被缓存。</p>
+      <h3>听谁的</h3>
+      <ul>
+        <li><strong>安全铁律。</strong>谁都覆盖不了。</li>
+        <li><strong>系统政策。</strong>怎么写代码、怎么用工具。</li>
+        <li><strong>项目文件、Skill 正文。</strong>更低。不准反客为主。</li>
+      </ul>
+      <h3>边界</h3>
+      <ul>
+        <li>当前时间、模式开关，不要放进这一段的最前面。</li>
+        <li>不是越长越聪明。铁律短而硬，偏好放到项目说明书。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>这就是大家说的 Prompt。改它，是在改常驻真理。一句偏好、一套作业步骤、一只外部的手，都不该塞进这里。</p>
+    </article>
+
+    <article id="d-cwd" data-title="当前目录" data-tag="箱子 · 环境">
+      <p class="lead">模型要知道「这里」是哪。读文件、找 AGENTS.md、发现 Skill，都从工作目录长出来。</p>
+      <h3>它会带着什么</h3>
+      <p>路径、是不是 git 仓库、有时还有平台信息。Codex 更省：第一轮给全量，之后只发「相对上次变了什么」。会变，所以不进铁律前缀。</p>
+      <h3>分享口播</h3>
+      <p>运营配的项目说明书，不是凭空出现的。是机器看着你现在站在哪个目录，把那份 md 读进来。目录错了，规矩就装错了。</p>
+    </article>
+
+    <article id="d-md" data-title="AGENTS.md" data-tag="箱子 · 从目录注入">
+      <p class="lead">这个仓库的说明书。Claude 叫 CLAUDE.md，Codex / 很多后来者叫 AGENTS.md。从当前目录往上找，读进来，塞进箱子。</p>
+      <h3>写什么才有用</h3>
+      <ul>
+        <li><strong>怎么跑起来。</strong>安装、测试、发版。</li>
+        <li><strong>数字口径。</strong>指标怎么算，禁止编造。</li>
+        <li><strong>红线。</strong>生产配置、密钥、不能自动提交。</li>
+      </ul>
+      <h3>边界</h3>
+      <ul>
+        <li>低于系统指令。位置上压，文字里也最好写明。</li>
+        <li>要有长度上限。写成长篇「团队规范」，会把真正重要的挤糊。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>这是运营和产品最该贡献的一张卡片。不是写「注意质量」，是写「改活动配置前先读口径表、发版必须跑哪条检查」。</p>
+    </article>
+
+    <article id="d-skills" data-title="Skill 目录" data-tag="箱子 · 6 张卡片，正文未装">
+      <p class="lead">你不可能把每个能力的完整说明书常驻。只让名字加一句「什么时候用我」常驻。正文等模型决定用了，再经 Skill 这个工具取回来。</p>
+      <h3>命门是描述</h3>
+      <p>写成「一个很有用的工具」等于没写。写成「用户要发版检查、对账、按品牌改文案时用我」才找得到。运营能贡献的，恰好是这张卡片。</p>
+      <h3>和 Prompt 的差别</h3>
+      <p>Prompt 是每轮都在的真理。Skill 是某一类事的作业包。一句偏好不要做成 Skill；一套可复用步骤，不要写成 Prompt。</p>
+      <h3>分享口播</h3>
+      <p>点这一行时说：模型现在只看见 6 张目录卡片，看不见周报该怎么写。要用，它得再调下面那个叫 Skill 的工具。</p>
+    </article>
+
+    <article id="d-tools" data-title="常驻工具" data-tag="箱子 · 每轮都可能用的手">
+      <p class="lead">读、改、跑命令。带完整说明书。清单顺序要稳定，顺序一抖，缓存就废。</p>
+      <h3>发给模型的只有说明书</h3>
+      <p>名字、描述、参数长什么样。是不是只读、能不能并行、要不要批准，是拿到真实参数之后才算的。永远不让模型自己声明「我这个调用是安全的」。</p>
+      <h3>分享口播</h3>
+      <p>核心工具要少而清。描述就是模型的搜索词。叫含糊的名字，等于不存在。</p>
+    </article>
+
+    <article id="d-skill-tool" data-title="Skill · 找作业" data-tag="两个特殊工具之一">
+      <p class="lead">箱子里除了读、改、跑，还常驻着一个专门用来打开作业包的工具。模型判断「这事儿该按周报那套干」，就调它，把那份正文取回来。</p>
+      <h3>找，然后打开</h3>
+      <p>目录卡片让它知道有哪些作业；这个工具让它真的把某一份打开。有的实现还会先「找一找」再「打开」。对听众只要记住：Skill 不是一句提示词，是「目录 + 一个能把正文取回来的手」。</p>
+      <h3>边界</h3>
+      <ul>
+        <li>正文较低信任，可能来自第三方。准用哪些工具，要绑在技能上。</li>
+        <li>可以选开一个子任务跑，避免大段作业说明污染主对话。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>这次重构未必用到它，但它已经坐在箱子里。任务一旦变成「按我们的口径写周报」，模型会先调这个，而不是自己编步骤。</p>
+    </article>
+
+    <article id="d-toolsearch" data-title="ToolSearch · 找工具" data-tag="两个特殊工具之二">
+      <p class="lead">接了 MCP 之后，工具轻松上百。每轮把全部说明书塞进脑子，模型和账单会一起崩。所以长尾先只露名字。要用，先调这个搜索工具，把说明书召回来。</p>
+      <h3>自举</h3>
+      <p>这个找工具的工具自己必须永不延迟。否则模型没有入口，后面 41 个名字等于隐形。Claude 对外部工具一律延迟；只有被点名的那一个，付过说明书的字数账。</p>
+      <h3>和 Skill 是一对</h3>
+      <ul>
+        <li><strong>Skill。</strong>找的是作业说明（怎么干）。</li>
+        <li><strong>ToolSearch。</strong>找的是手（碰哪个外部系统）。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>这就是「召回」的人话：不是检索一篇文档，而是把某个工具从「我听说过」变成「我能调用」。先接一堆 MCP 再写百科，是最常见的失败。</p>
+    </article>
+
+    <article id="d-mcp" data-title="延迟的 MCP 工具" data-tag="箱子 · 41 个只有名字">
+      <p class="lead">MCP 给模型新手：工单、表格、内部接口。它解决「手够不着」，不解决「不懂怎么做」。</p>
+      <h3>该接 / 不该接</h3>
+      <ul>
+        <li><strong>该。</strong>要让 Agent 动手碰外部系统。</li>
+        <li><strong>不该。</strong>只是想让步骤变稳——那是 Skill 和项目说明书。</li>
+      </ul>
+      <h3>代价</h3>
+      <p>工具数暴涨。必须配套 ToolSearch。发送、改生产，必须问人。远端来源不准直接跑命令行。</p>
+      <h3>分享口播</h3>
+      <p>最划算，不等于排得最早。先把「听谁的」摆对，再把高频作业收成 Skill，最后才接 MCP，并打开延迟加载。</p>
+    </article>
+
+    <article id="d-msg" data-title="对话历史" data-tag="箱子 · 现在只有你一句">
+      <p class="lead">用户说的、模型说的、工具结果，按时间追加。只在末尾加，前面逐字不变，缓存才滚得动。</p>
+      <h3>卫生</h3>
+      <ul>
+        <li>有调用必须有结果。中断了就补一条「已中止」。</li>
+        <li>一条测试日志可以把窗口撑爆，输出要有上限。</li>
+        <li>压缩是付费事件：前面换成摘要，会忘，还要重建缓存。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>第 1 次问模型时，历史几乎就是你那句话。第 2 次，多了文件内容。所以它不是「想一下就答完」，是一轮任务套着多次询问。</p>
+    </article>
+
+    <article id="d-hook-send" data-title="发出去之前的 Hook" data-tag="04 · 再贴一张本轮纸条">
+      <p class="lead">箱子已经装好。真正发出去前，还可以再注入高度易变的话：现在是规划还是动手、还剩几个待办。</p>
+      <h3>为什么不进铁律</h3>
+      <p>这些每轮都可能变。放进 system 最前面，缓存每轮作废，又贵又慢。正确做法是跟最新的用户消息走，每轮新鲜贴一份，并标明：这些来自系统，但不是最高权威。</p>
+      <h3>分享口播</h3>
+      <p>Hook 出现在好几个时刻：开口时、发出去前、动手前、想收工时。同一类机制，卡在循环的不同缝上。发起这一刻，最常见的用途就是贴提醒，而不是改铁律。</p>
+    </article>
+
+    <article id="d-call1" data-title="第 1 次问模型" data-tag="05 · 采样，不是任务结束">
+      <p class="lead">打开模型的流，边收边解析。吐出来的可能是对人说的字，也可能是「请帮我调某个工具」。</p>
+      <h3>粒度</h3>
+      <ul>
+        <li><strong>一轮任务。</strong>从你开口到交还控制权。就是上面那句重构。</li>
+        <li><strong>一次采样。</strong>对模型的一次调用。本例会有三次。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>不要说「模型想了一下」。说「第 1 次问它」。它说先读文件，循环必须把文件喂回去，再问第 2 次，它才能改。</p>
+    </article>
+
+    <article id="d-model1" data-title="模型开口 · 要读文件" data-tag="06 · 点了 Read">
+      <p class="lead">它对人说「我先看一下」，同时在回复里夹了一个工具调用。成熟实现看实际收到的工具块，不看「我说完了」那个标签。</p>
+      <h3>这次为什么没用 Skill / ToolSearch</h3>
+      <p>读本地文件是常驻工具，说明书已经在箱子里。重构还不需要外部系统和作业包。那两个找东西的工具在待命——任务一变成发周报，就会被用上。</p>
+      <h3>分享口播</h3>
+      <p>模型只会输出文字。能读到 utils.ts，全靠运行时按约定去执行，再把 412 行写成一条结果。</p>
+    </article>
+
+    <article id="d-hook-pre" data-title="动手前的 Hook" data-tag="07 · 可拦，可改参数">
+      <p class="lead">模型点了工具，还不能直接跑。先过 Hook，再过权限门。</p>
+      <h3>权力上限</h3>
+      <ul>
+        <li>可以拦住一次危险调用。</li>
+        <li>可以改写入参。</li>
+        <li>不能把权限放宽到突破拒绝名单。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>读文件通常自动过。发消息、改生产、删数据，会停在「等你点」。这一轮任务看起来像卡住了，其实是门在工作。</p>
+    </article>
+
+    <article id="d-tool-read" data-title="跑 Read" data-tag="08 · 结果写回历史">
+      <p class="lead">真的去读盘。成功、失败，都变成一条工具消息，追加到箱子末尾。</p>
+      <h3>失败是主通道</h3>
+      <p>找不到路径、文件太大被截断，都应该写成原因喂回去。「出错了」不如「文件不存在，是否想读 src/utils.ts」。后者模型能改。</p>
+      <h3>分享口播</h3>
+      <p>用户看到失败气泡，先别当成事故。问：原因写得够不够它改下一次？不够，是产品问题。</p>
+    </article>
+
+    <article id="d-pack2" data-title="再装一次" data-tag="09 · 多了工具结果">
+      <p class="lead">模型不记事。第 2 次问，要把第 1 次的对话和刚刚读到的 412 行重新带上。</p>
+      <h3>什么尽量别动</h3>
+      <p>铁律、工具清单顺序、已经说过的话。只在末尾追加。改写中段会把缓存打碎，同一段身份指令按全价重算。</p>
+      <h3>分享口播</h3>
+      <p>这就是为什么「在系统提示最前面加当前时间」是灾难：前缀每轮都变，缓存全废。</p>
+    </article>
+
+    <article id="d-call2" data-title="第 2 次问模型" data-tag="10 · 这回看见文件了">
+      <p class="lead">续采：有工具结果要消化，就必须再问一次。用户感觉仍是同一件事在往下做。</p>
+      <h3>分享口播</h3>
+      <p>任务结束不等于模型这一次说完了。第 1 次说完只结束采样。整轮任务还在继续。</p>
+    </article>
+
+    <article id="d-model2" data-title="模型开口 · 要改文件" data-tag="11 · 点了 Edit">
+      <p class="lead">看见内容之后，才发起修改。精确替换：旧文字 → 新文字。必须先读过、文件没被别人改过、匹配必须唯一。</p>
+      <h3>纠正回路</h3>
+      <p>匹配不上就大声失败，绝不静默写错地方。用户看到「找不到这段文字」，往往是守卫在工作：模型拿着过期视图去改，系统拒绝，让它重新读。</p>
+      <h3>分享口播</h3>
+      <p>现场若能演示一次失败再改成功，听众会记住纠正回路，而不是记住循环的名字。</p>
+    </article>
+
+    <article id="d-tool-edit" data-title="跑 Edit" data-tag="12 · 允许 / 问人 / 拒绝">
+      <p class="lead">改文件走本地执行。可见、可派发，真要执行还要过门。拒绝优先。</p>
+      <h3>三种门</h3>
+      <ul>
+        <li><strong>允许。</strong>低风险，自动过。</li>
+        <li><strong>问人。</strong>这一轮停在等待上。</li>
+        <li><strong>拒绝。</strong>写成原因喂回模型，换一条路。不是任务失败。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>「请小心」写在提示词里，挡不住。真正挡得住的，是这一道门。</p>
+    </article>
+
+    <article id="d-call3" data-title="第 3 次问模型" data-tag="13 · 看见改成功了">
+      <p class="lead">工具结果回来了，再问一次。它决定：还要不要动手，或开始对人总结。</p>
+      <h3>分享口播</h3>
+      <p>本例三次采样：读、改、说。复杂任务可以是十几次。预算要挂对层：字数花在每一次询问上，工具次数挂在这一轮任务上。</p>
+    </article>
+
+    <article id="d-model3" data-title="模型开口 · 总结" data-tag="14 · 不再要工具">
+      <p class="lead">对人说话，并且没有新的工具调用。是不是真能停，还不是它说了算。</p>
+      <h3>分享口播</h3>
+      <p>上面聊天框里那句「改完了」，到这一步才出现。前面十几行，用户平时看不见。今天把控制台打开，就是让大家看见这些。</p>
+    </article>
+
+    <article id="d-hook-stop" data-title="想停时的 Hook" data-tag="15 · 可以一票打回">
+      <p class="lead">模型说做完了。规则仍可强制续跑：测试没过、预览没出、还没干到预算的九成。</p>
+      <h3>几道闸</h3>
+      <ul>
+        <li><strong>模型行为。</strong>这轮是不是真的点了工具。看行为，不看标签。</li>
+        <li><strong>规则否决。</strong>本层。</li>
+        <li><strong>空转。</strong>连续续跑却几乎没产出就停。</li>
+        <li><strong>硬上限。</strong>前面全失灵时的保险丝。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>「Agent 偷懒」和「Agent 死循环」往往不是模型性格，是这组闸没调好。交付前必须跑通测试，不要写进提示词求它自觉。</p>
+    </article>
+
+    <article id="d-done" data-title="交还控制权" data-tag="16 · 你看见的忙了一阵">
+      <p class="lead">一轮任务结束。效果几乎全在这台循环上：箱子怎么装、工具怎么召回、失败怎么喂回去、什么时候停。</p>
+      <h3>优化时先问卡在哪</h3>
+      <ul>
+        <li>答非所问 → 动项目说明书 / 铁律。</li>
+        <li>步骤乱 → 写 Skill，描述写清何时用。</li>
+        <li>手够不着 → 接 MCP，并打开延迟加载。</li>
+        <li>一接外部就胡来 → 动权限门，不要在提示词里写请小心。</li>
+      </ul>
+      <h3>分享口播</h3>
+      <p>收在这句：Prompt、Skill、MCP 不在同一格，不能互相替代。先摆对听谁的，再收作业包，最后才给新手。</p>
+    </article>
+
+    <article id="d-alt-skill" data-title="换成发周报 · 先打开作业包" data-tag="另一条路 · Skill">
+      <p class="lead">重构走的是读和改。发周报走的是「按我们的步骤干」。模型先调 Skill，把周报作业包的正文取进对话。</p>
+      <h3>作业包里有什么</h3>
+      <p>拉哪些数、口径以谁为准、套哪张模板、先预览再发。这些不要写进 system——那是某一类事的流程，不是所有任务的铁律。</p>
+      <h3>分享口播</h3>
+      <p>描述写成「用户说写周报、对账、发群时用我」。写「很有用」等于不存在。</p>
+    </article>
+
+    <article id="d-alt-search" data-title="换成发周报 · 再找到手" data-tag="另一条路 · ToolSearch">
+      <p class="lead">作业包告诉它怎么干。真要把周报发到群里，还得有一只手。这只手通常来自 MCP，一开始只有名字。</p>
+      <h3>找 → 找到 → 下一轮才能调</h3>
+      <p>ToolSearch 返回的不是「已经发了」，是「说明书在这里」。下一轮装箱时，这个工具才带完整参数结构，模型才能真正调用。</p>
+      <h3>分享口播</h3>
+      <p>Skill 找作业，ToolSearch 找手。两个特殊工具，专门解决「不能把所有说明书常驻」。</p>
+    </article>
+
+    <article id="d-alt-perm" data-title="换成发周报 · 发送要问人" data-tag="另一条路 · 权限门">
+      <p class="lead">找到了发消息的工具，仍不能直接发。发送类动作停在等待上，你点了才走。</p>
+      <h3>和提示词的分工</h3>
+      <p>提示词可以写「先预览」。真挡得住的是门。Hook 的「允许」也越不过用户和企业写死的拒绝。</p>
+      <h3>分享口播</h3>
+      <p>把三根杠杆收在发周报这条路上：项目说明书管口径，Skill 管步骤，MCP 管手，门管会不会真发出去。</p>
+    </article>
+  </div>
+
+  <script>
+    const pb = document.getElementById("pb");
+    const pt = document.getElementById("pt");
+    const pg = document.getElementById("pg");
+    const home = document.getElementById("d-home");
+    const botp = document.getElementById("botp");
+    const stat = document.getElementById("stat");
+    const logEl = document.getElementById("log");
+    const playBtn = document.getElementById("play");
+
+    const BOT = {
+      home: "还没开口。它先在装箱。",
+      "layer-in": "还没开口。先过进门这一层。",
+      user: "还没开口。先记下你说了什么。",
+      "hook-in": "还没开口。Hook 可以先附加情境。",
+      "layer-pack": "还没开口。正在装箱，分三层。",
+      pack: "还没开口。正在装箱。",
+      sys: "还没开口。铁律已经放进箱子。",
+      cwd: "还没开口。工作目录已附上。",
+      md: "还没开口。项目说明书已从目录注入。",
+      skills: "还没开口。6 张 Skill 卡片在目录里。",
+      tools: "还没开口。常驻工具说明书已放好。",
+      "skill-tool": "还没开口。找作业的工具已坐在箱子里。",
+      toolsearch: "还没开口。找工具的工具已坐在箱子里。",
+      mcp: "还没开口。41 个外部工具先只露名字。",
+      msg: "还没开口。对话里暂时只有你一句。",
+      "hook-send": "还没开口。发出去前再贴一张本轮纸条。",
+      "layer-loop": "开始问模型。一轮任务套着三次采样。",
+      call1: "正在想。第 1 次询问已经发出。",
+      model1: "我先读一下 utils.ts。",
+      "hook-pre": "我先读一下 utils.ts。",
+      "tool-read": "我先读一下 utils.ts。",
+      pack2: "（读完了。再问一次才能改。）",
+      call2: "（第 2 次询问发出。）",
+      model2: "开始改。抽重复逻辑，补边界。",
+      "tool-edit": "开始改。抽重复逻辑，补边界。",
+      call3: "（改成功了。再问一次做总结。）",
+      model3: "改完了。三处调整：重复逻辑抽出来，补了边界，测试还是绿的。",
+      "layer-stop": "改完了。但停不停还要过一道闸。",
+      "hook-stop": "改完了。三处调整：重复逻辑抽出来，补了边界，测试还是绿的。",
+      done: "改完了。三处调整：重复逻辑抽出来，补了边界，测试还是绿的。",
+      "layer-alt": "若是写周报：同一台循环，走作业包和外部的手。",
+      "alt-skill": "若是写周报：我会先打开那份作业说明。",
+      "alt-search": "若是发群：还要先找到发消息这只手。",
+      "alt-perm": "若是发群：先给你预览，你点了才发。"
+    };
+
+    const PLAY = [
+      "layer-in", "user", "hook-in",
+      "layer-pack", "pack", "sys", "cwd", "md", "skills",
+      "tools", "skill-tool", "toolsearch", "mcp", "msg", "hook-send",
+      "layer-loop", "call1", "model1", "hook-pre", "tool-read",
+      "pack2", "call2", "model2", "tool-edit", "call3", "model3",
+      "layer-stop", "hook-stop", "done"
+    ];
+
+    function headingKind(text) {
+      if (/怎么说/.test(text)) return "says";
+      if (/边界|不能做|不该/.test(text)) return "bounds";
+      return "cards";
+    }
+
+    function splitItem(li) {
+      if (li.querySelector(":scope > .k")) return;
+      const strong = li.firstElementChild;
+      if (!strong || strong.tagName !== "STRONG") return;
+      const k = document.createElement("div");
+      k.className = "k";
+      k.append(...strong.childNodes);
+      k.textContent = k.textContent.replace(/[：:]\s*$/, "");
+      const d = document.createElement("div");
+      d.className = "d";
+      let node = strong.nextSibling;
+      while (node) {
+        const next = node.nextSibling;
+        d.appendChild(node);
+        node = next;
+      }
+      strong.replaceWith(k);
+      if (d.firstChild && d.firstChild.nodeType === 3) {
+        d.firstChild.textContent = d.firstChild.textContent.replace(/^[：:\s]+/, "");
+      }
+      if (d.textContent.trim()) li.appendChild(d);
+    }
+
+    function enhance(root) {
+      if (root.querySelector(".empty") || root.querySelector(".toc")) return;
+      root.querySelectorAll("ul, ol").forEach((list) => {
+        const prev = list.previousElementSibling;
+        const label = prev ? prev.textContent : "";
+        const kind = list.parentElement === root || (prev && /^H[34]$/.test(prev.tagName))
+          ? headingKind(label)
+          : "cards";
+        if (prev && /^H[34]$/.test(prev.tagName)) list.classList.add(kind);
+        else if (!list.className) list.classList.add("cards");
+        if (list.classList.contains("cards")) {
+          list.querySelectorAll(":scope > li").forEach(splitItem);
+        }
+      });
+      root.querySelectorAll("h3").forEach((h) => {
+        if (!/口播/.test(h.textContent)) return;
+        const box = document.createElement("aside");
+        box.className = "talk";
+        let n = h.nextElementSibling;
+        while (n && n.tagName === "P") {
+          const next = n.nextElementSibling;
+          box.appendChild(n);
+          n = next;
+        }
+        if (box.childNodes.length) h.after(box);
+      });
+      const heads = [...root.querySelectorAll("h3")];
+      if (heads.length >= 3) {
+        const nav = document.createElement("nav");
+        nav.className = "toc";
+        nav.setAttribute("aria-label", "本节目录");
+        heads.forEach((h) => {
+          const a = document.createElement("button");
+          a.type = "button";
+          a.textContent = h.textContent.replace(/^\d+\.\s*/, "").slice(0, 14);
+          a.addEventListener("click", () => h.scrollIntoView({ behavior: "smooth", block: "start" }));
+          nav.appendChild(a);
+        });
+        root.prepend(nav);
+      }
+    }
+
+    function setBot(id) {
+      const text = BOT[id] || BOT.home;
+      botp.textContent = text;
+      const waiting = /^(home|layer-in|user|hook-in|layer-pack|pack|sys|cwd|md|skills|tools|skill-tool|toolsearch|mcp|msg|hook-send)$/.test(id);
+      botp.classList.toggle("wait", waiting);
+    }
+
+    function show(id) {
+      const art = document.getElementById("d-" + id) || home;
+      pt.textContent = art.dataset.title || "";
+      pg.textContent = art.dataset.tag || "";
+      pb.innerHTML = art.innerHTML;
+      pb.scrollTop = 0;
+      enhance(pb);
+      document.querySelectorAll(".row.is-on, .cell.is-on, .band-h.is-on, .map button.is-on").forEach((el) => el.classList.remove("is-on"));
+      document.querySelectorAll('[data-id="' + id + '"]').forEach((el) => el.classList.add("is-on"));
+      setBot(id);
+      const on = document.querySelector('[data-id="' + id + '"]');
+      if (on && id !== "home") {
+        on.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+      history.replaceState(null, "", id === "home" ? location.pathname : "#" + id);
+    }
+
+    document.querySelectorAll("[data-id]").forEach((el) => {
+      el.addEventListener("click", () => {
+        stopPlay();
+        const id = el.getAttribute("data-id");
+        if (el.classList.contains("is-on")) show("home");
+        else show(id);
+      });
+    });
+    document.getElementById("px").addEventListener("click", () => { stopPlay(); show("home"); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { stopPlay(); show("home"); }
+    });
+
+    let playTimer = 0;
+    let playIdx = 0;
+
+    function stopPlay() {
+      clearTimeout(playTimer);
+      playTimer = 0;
+      playIdx = 0;
+      playBtn.textContent = "回放一次";
+      playBtn.classList.remove("is-on");
+      logEl.classList.remove("is-playing");
+      document.querySelectorAll(".seen").forEach((el) => el.classList.remove("seen"));
+      stat.textContent = "点一行，右侧讲";
+    }
+
+    function markSeen(id) {
+      document.querySelectorAll('[data-id="' + id + '"]').forEach((el) => el.classList.add("seen"));
+      const idx = PLAY.indexOf(id);
+      if (idx >= 0) {
+        PLAY.slice(0, idx).forEach((prev) => {
+          document.querySelectorAll('[data-id="' + prev + '"]').forEach((el) => el.classList.add("seen"));
+        });
+      }
+    }
+
+    function tick() {
+      if (playIdx >= PLAY.length) {
+        stat.textContent = "回放结束 · 可再点任意一行";
+        playBtn.textContent = "回放一次";
+        playBtn.classList.remove("is-on");
+        playTimer = 0;
+        logEl.classList.remove("is-playing");
+        document.querySelectorAll(".row, .cell").forEach((el) => el.classList.add("seen"));
+        return;
+      }
+      const id = PLAY[playIdx++];
+      markSeen(id);
+      show(id);
+      stat.textContent = "回放 " + playIdx + " / " + PLAY.length;
+      const dwell = /^(layer-|pack|skill-tool|toolsearch)/.test(id) ? 1600 : 900;
+      playTimer = setTimeout(tick, dwell);
+    }
+
+    playBtn.addEventListener("click", () => {
+      if (playTimer) { stopPlay(); show("home"); return; }
+      stopPlay();
+      logEl.classList.add("is-playing");
+      playBtn.textContent = "停止";
+      playBtn.classList.add("is-on");
+      playIdx = 0;
+      tick();
+    });
+
+    const hash = decodeURIComponent(location.hash.replace("#", ""));
+    if (hash && document.getElementById("d-" + hash)) show(hash);
+  </script>
+</body>
+</html>

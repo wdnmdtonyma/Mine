@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aime 产品架构</title>
+  <style>
+    :root {
+      --ink: #1c1917;
+      --muted: #78716c;
+      --faint: #a8a29e;
+      --line: #e7e5e4;
+      --paper: #ffffff;
+      --page: #f5f3ef;
+      --panel: #fbfaf7;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--page);
+      color: var(--ink);
+      font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button {
+      appearance: none;
+      -webkit-appearance: none;
+      font: inherit;
+      color: inherit;
+      background: none;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      text-align: left;
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(400px, 34vw);
+      height: 100vh;
+    }
+    .board {
+      overflow: auto;
+      padding: 36px 40px 64px;
+    }
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 36px;
+    }
+    .hero .kicker {
+      margin: 0 0 8px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      color: var(--faint);
+    }
+    .hero h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.15;
+    }
+    .hero p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 420px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px 18px;
+      font-size: 11px;
+      color: var(--muted);
+      padding-bottom: 4px;
+    }
+    .legend i {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 2px;
+      margin-right: 6px;
+      vertical-align: 1px;
+    }
+    .stack {
+      display: flex;
+      flex-direction: column;
+      max-width: 1080px;
+      padding-top: 8px;
+    }
+    .band {
+      --c: #57534e;
+      --wash: #fafaf9;
+      --stroke: #e7e5e4;
+      position: relative;
+      margin-top: 12px;
+      padding: 26px 16px 16px;
+      background: var(--wash);
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+    }
+    .l1 { --c: #3b6ea8; --wash: #f3f6fa; --stroke: #d5dee8; }
+    .l2 { --c: #3d7a58; --wash: #f2f7f4; --stroke: #d3e4da; }
+    .l3 { --c: #4f5d9a; --wash: #f3f4f9; --stroke: #d6dae8; }
+    .l4 { --c: #9a6a38; --wash: #f7f3ec; --stroke: #e6dccb; }
+    .l5 { --c: #6a5a8a; --wash: #f5f3f7; --stroke: #ddd6e4; }
+    .band-h {
+      position: absolute;
+      top: -11px;
+      left: 18px;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 0 8px;
+      background: var(--page);
+      color: var(--c);
+    }
+    .band-h.is-on { color: var(--ink); }
+    .idx {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      color: var(--faint);
+    }
+    .band-h h2 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+    .band-h .sub {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+    .nodes {
+      display: grid;
+      gap: 8px;
+    }
+    .n5 { grid-template-columns: repeat(5, 1fr); }
+    .n6 { grid-template-columns: repeat(6, 1fr); }
+    .n3 { grid-template-columns: repeat(3, 1fr); }
+    .node {
+      background: var(--paper);
+      border: 1px solid #e4e1db;
+      border-radius: 10px;
+      padding: 12px 12px 13px;
+      min-height: 108px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 1px 0 rgba(28,25,23,.04);
+      transition: border-color .15s, box-shadow .15s, transform .15s;
+    }
+    .node:hover {
+      border-color: #c9c4bb;
+      box-shadow: 0 8px 20px rgba(28,25,23,.06);
+      transform: translateY(-1px);
+    }
+    .node.is-on {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 1px var(--ink);
+    }
+    .node:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+    .node b {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
+    }
+    .node em {
+      margin-top: 3px;
+      font-style: normal;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: var(--c);
+    }
+    .node p {
+      margin: 8px 0 0;
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .pair {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .pair + .pair { margin-top: 8px; }
+    .pair .node { min-height: 96px; }
+    .pair .node.lg { min-height: 120px; }
+    .pair .node.lg b { font-size: 16px; letter-spacing: -0.03em; }
+    .chip {
+      align-self: center;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      background: var(--paper);
+      border-radius: 999px;
+      padding: 5px 11px;
+      white-space: nowrap;
+    }
+    .chip.mute { color: var(--faint); }
+    .join {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 28px;
+      background-image: linear-gradient(var(--line), var(--line));
+      background-size: 1px 100%;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    .join span {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: var(--faint);
+      background: var(--page);
+      padding: 0 10px;
+    }
+    .panel {
+      background: var(--panel);
+      border-left: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .panel-h {
+      padding: 28px 28px 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .panel-h h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.2;
+    }
+    .panel-h .tag {
+      margin-top: 6px;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--faint);
+    }
+    .panel-x {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      color: var(--faint);
+      font-size: 18px;
+      line-height: 28px;
+      text-align: center;
+    }
+    .panel-x:hover { color: var(--ink); background: #f0eee8; }
+    .panel-b {
+      overflow: auto;
+      padding: 4px 28px 48px;
+      font-size: 14px;
+      line-height: 1.7;
+      color: #44403c;
+    }
+    .panel-b .toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: linear-gradient(var(--panel) 65%, rgba(251,250,247,0));
+      padding: 0 0 16px;
+      margin: 0 0 8px;
+    }
+    .panel-b .toc button {
+      font-size: 12px;
+      color: var(--faint);
+      padding: 0;
+      margin: 0 14px 8px 0;
+    }
+    .panel-b .toc button:hover { color: var(--ink); }
+    .panel-b .lead {
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.55;
+      margin: 0 0 22px;
+      padding: 0;
+      background: none;
+      border: 0;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+    .panel-b h3 {
+      margin: 28px 0 10px;
+      padding: 0;
+      border: 0;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--faint);
+    }
+    .panel-b h3:first-of-type { margin-top: 4px; }
+    .panel-b h4 {
+      margin: 20px 0 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .panel-b p { margin: 0 0 12px; }
+    .panel-b p:last-child { margin-bottom: 0; }
+    .panel-b ul, .panel-b ol {
+      margin: 0 0 8px;
+      padding: 0;
+      list-style: none;
+    }
+    .panel-b .cards > li,
+    .panel-b .quota > li {
+      background: none;
+      border: 0;
+      border-radius: 0;
+      padding: 12px 0;
+      margin: 0;
+      border-bottom: 1px solid #eeeae4;
+    }
+    .panel-b .cards > li:first-child,
+    .panel-b .quota > li:first-child { padding-top: 2px; }
+    .panel-b .cards > li .k,
+    .panel-b .quota > li .k {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      margin: 0 0 3px;
+      line-height: 1.35;
+    }
+    .panel-b .cards > li .d,
+    .panel-b .quota > li .d {
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .panel-b .says {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 4px 0 12px;
+    }
+    .panel-b .says > li {
+      margin: 0;
+      padding: 0 0 0 1em;
+      background: none;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.6;
+      text-indent: -1em;
+    }
+    .panel-b .bounds > li {
+      margin: 0;
+      padding: 8px 0 8px 0;
+      background: none;
+      border: 0;
+      border-bottom: 1px solid #eeeae4;
+      font-size: 13.5px;
+      color: #57534e;
+      line-height: 1.65;
+    }
+    .panel-b .bounds > li::before {
+      content: "—  ";
+      color: #b45309;
+    }
+    .panel-b .talk {
+      margin: 0;
+      padding: 16px 0 0;
+      background: none;
+      color: var(--ink);
+      border-top: 1px solid var(--line);
+      border-radius: 0;
+      font-size: 14.5px;
+      line-height: 1.8;
+      letter-spacing: 0.01em;
+    }
+    .panel-b .talk p { color: inherit; }
+    .panel-b code {
+      font-size: 12px;
+      background: #f0eee8;
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #44403c;
+    }
+    .panel-b .d ul { margin-top: 8px; }
+    .panel-b .d ul > li {
+      background: none;
+      border: 0;
+      border-radius: 0;
+      padding: 4px 0 4px 12px;
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      position: relative;
+    }
+    .panel-b .d ul > li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.7em;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #d6d3d1;
+    }
+    .empty .lead { font-weight: 500; }
+    #catalog { display: none; }
+    @media (max-width: 1080px) {
+      .n5, .n6 { grid-template-columns: repeat(3, 1fr); }
+      .pair { grid-template-columns: 1fr; }
+      .chip { justify-self: start; margin: 2px 0; }
+    }
+    @media (max-width: 960px) {
+      .shell { grid-template-columns: 1fr; }
+      .panel {
+        position: fixed;
+        inset: auto 0 0 0;
+        height: 48vh;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        z-index: 4;
+      }
+      .board { padding: 24px 20px 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    
+    <div class="board">
+      <div class="hero">
+        <div>
+          <p class="kicker">AIME · PRODUCT</p>
+          <h1>产品架构</h1>
+          <p>同一套办事能力，出现在用户已经在的地方。点图上的方块，右侧讲这一块。</p>
+        </div>
+        <div class="legend">
+          <span><i style="background:#3b6ea8"></i>接入</span>
+          <span><i style="background:#3d7a58"></i>对象</span>
+          <span><i style="background:#4f5d9a"></i>Agent</span>
+          <span><i style="background:#9a6a38"></i>能力</span>
+          <span><i style="background:#6a5a8a"></i>底座</span>
+        </div>
+      </div>
+
+      <div class="stack">
+        <section class="band l1">
+          <button class="band-h" data-id="layer-access" type="button">
+            <span class="idx">01</span>
+            <h2>接入层</h2>
+            <span class="sub">用户从哪进来</span>
+          </button>
+          <div class="nodes n5">
+            <button class="node" data-id="web" type="button"><b>主站</b><em>WEB</em><p>任务会话。看过程、拿产物。</p></button>
+            <button class="node" data-id="assistant" type="button"><b>飞书助理</b><em>BOT / 群</em><p>随时问、盯进度、把大事派出去。</p></button>
+            <button class="node" data-id="ide" type="button"><b>IDE</b><em>编辑器</em><p>写代码时改当前仓库。</p></button>
+            <button class="node" data-id="automation" type="button"><b>自动化</b><em>定时 / 事件</em><p>Meego、MR、到点了自己跑。</p></button>
+            <button class="node" data-id="openapi" type="button"><b>OpenAPI</b><em>集成</em><p>流水线里直接派活。</p></button>
+          </div>
+        </section>
+
+        <div class="join"><span>创建会话</span></div>
+
+        <section class="band l2">
+          <button class="band-h" data-id="layer-space" type="button">
+            <span class="idx">02</span>
+            <h2>产品对象 · 空间</h2>
+            <span class="sub">团队工作台</span>
+          </button>
+          <div class="nodes n6">
+            <button class="node" data-id="session" type="button"><b>会话</b><em>一次干活</em><p>配一台云电脑。</p></button>
+            <button class="node" data-id="template" type="button"><b>模板</b><em>配方</em><p>填变量再跑一遍。</p></button>
+            <button class="node" data-id="workflow" type="button"><b>工作流</b><em>流水线</em><p>多步串联。</p></button>
+            <button class="node" data-id="skill" type="button"><b>技能</b><em>SOP</em><p>教它怎么干这类事。</p></button>
+            <button class="node" data-id="mcp" type="button"><b>MCP</b><em>插头</em><p>接到外部系统。</p></button>
+            <button class="node" data-id="trigger" type="button"><b>触发器</b><em>自动拉起</em><p>事件来了自己跑。</p></button>
+          </div>
+        </section>
+
+        <div class="join"><span>规划并执行</span></div>
+
+        <section class="band l3">
+          <button class="band-h" data-id="layer-agent" type="button">
+            <span class="idx">03</span>
+            <h2>Agent · 产品核心</h2>
+            <span class="sub">想清楚，再动手</span>
+          </button>
+          <div class="pair">
+            <button class="node lg" data-id="planner" type="button"><b>规划者</b><em>PLANNER</em><p>看懂意图，拆不拆，派给谁。</p></button>
+            <div class="chip">派活</div>
+            <button class="node lg" data-id="actor" type="button"><b>执行者</b><em>动手</em><p>在云电脑里真干活。</p></button>
+          </div>
+          <div class="pair">
+            <button class="node" data-id="ask" type="button"><b>问答</b><em>轻量</em><p>能答就答，不轻易改仓库。</p></button>
+            <div class="chip mute">分流</div>
+            <button class="node" data-id="work" type="button"><b>办事</b><em>交付</em><p>必须交出文档、代码或预览。</p></button>
+          </div>
+        </section>
+
+        <div class="join"><span>调用系统</span></div>
+
+        <section class="band l4">
+          <button class="band-h" data-id="layer-caps" type="button">
+            <span class="idx">04</span>
+            <h2>能力连接</h2>
+            <span class="sub">能碰到哪些系统</span>
+          </button>
+          <div class="nodes n6">
+            <button class="node" data-id="lark" type="button"><b>飞书</b><em>办公</em><p>文档、表格、审批、消息。</p></button>
+            <button class="node" data-id="code" type="button"><b>代码协作</b><em>研发</em><p>仓库、MR、Code Review。</p></button>
+            <button class="node" data-id="browser" type="button"><b>浏览器</b><em>操作</em><p>打开指定网页。</p></button>
+            <button class="node" data-id="data" type="button"><b>数据实验</b><em>分析</em><p>查数、看板、实验。</p></button>
+            <button class="node" data-id="devops" type="button"><b>研发运维</b><em>线上</em><p>日志、发布、值班。</p></button>
+            <button class="node" data-id="meego" type="button"><b>Meego</b><em>项目</em><p>需求、缺陷、拉起任务。</p></button>
+          </div>
+        </section>
+
+        <div class="join"><span>运行依赖</span></div>
+
+        <section class="band l5">
+          <button class="band-h" data-id="layer-infra" type="button">
+            <span class="idx">05</span>
+            <h2>基础设施</h2>
+            <span class="sub">看不见但必须有</span>
+          </button>
+          <div class="nodes n3">
+            <button class="node" data-id="runtime" type="button"><b>云工作区</b><em>RUNTIME</em><p>终端、文件、浏览器、WebIDE。</p></button>
+            <button class="node" data-id="knowledge" type="button"><b>知识库</b><em>检索</em><p>空间文档、团队知识。</p></button>
+            <button class="node" data-id="model" type="button"><b>模型</b><em>LLM</em><p>规划与执行用的脑。</p></button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <aside class="panel">
+      <div class="panel-h">
+        <div>
+          <h2 id="pt">点图上的方块</h2>
+          <div class="tag" id="pg">右侧会展开这一块的说明书</div>
+        </div>
+        <button class="panel-x" type="button" id="px" title="回到总览">×</button>
+      </div>
+      <div class="panel-b" id="pb">
+        <div class="empty">
+          <p class="lead">这是一张可以讲的架构图。点主站，就讲主站；点飞书助理，就讲助理现在有什么能力。</p>
+          <h3>建议分享顺序</h3>
+          <ol class="cards">
+            <li><div class="k">1 · 接入层</div><div class="d">用户从哪进来：主站最完整，飞书最随时。</div></li>
+            <li><div class="k">2 · 会话</div><div class="d">一次干活 = 一台云电脑。关掉页面还能续。</div></li>
+            <li><div class="k">3 · 规划者 / 执行者</div><div class="d">想清楚再动手。对照问答和办事那一刀。</div></li>
+            <li><div class="k">4 · 技能 / 模板 / 工作流</div><div class="d">三根杠杆。单次聪明收成可规模化。</div></li>
+          </ol>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="catalog">
+    <article id="d-home" data-title="点图上的方块" data-tag="右侧会展开这一块的说明书">
+      <div class="empty">
+        <p class="lead">这是一张可以讲的架构图。点主站，就讲主站；点飞书助理，就讲助理现在有什么能力。</p>
+        <h3>建议分享顺序</h3>
+        <ol class="cards">
+          <li><div class="k">1 · 接入层</div><div class="d">用户从哪进来：主站最完整，飞书最随时。</div></li>
+          <li><div class="k">2 · 会话</div><div class="d">一次干活 = 一台云电脑。关掉页面还能续。</div></li>
+          <li><div class="k">3 · 规划者 / 执行者</div><div class="d">想清楚再动手。对照问答和办事那一刀。</div></li>
+          <li><div class="k">4 · 技能 / 模板 / 工作流</div><div class="d">三根杠杆。单次聪明收成可规模化。</div></li>
+        </ol>
+      </div>
+    </article>
+
+    <article id="d-layer-access" data-title="接入层" data-tag="01 · 用户从哪进来">
+      <p class="lead">同一套办事能力，出现在用户已经在的地方。主站最完整，飞书最随时，IDE 最贴写代码，自动化和 OpenAPI 是人不盯着也能跑。</p>
+      <h3>这一层在解决什么</h3>
+      <p>不是「做一个聊天页」，而是「用户人在哪，就能把活派给 Aime」。五个入口背后都是创建或唤醒一次会话，只是等待方式、通知方式和能不能盯过程不一样。</p>
+      <h3>怎么讲</h3>
+      <p>先问需求：用户会从哪进来？答不上来，后面的模板、技能都会挂错入口。</p>
+    </article>
+
+    <article id="d-web" data-title="主站" data-tag="接入 · Web">
+<p class="lead">Aime 任务工作台：开会话、看过程、管空间、固化复用。</p>
+  <h3>用户进来看到什么</h3>
+  <p>打开 <code>aime.bytedance.net</code>，先落在某个<strong>空间</strong>（个人空间或项目空间，左上角可切换）。首页是对话输入框：可以直接打需求，也可以点<strong>快捷指令</strong>（按场景预填模板文案和变量），或从模板市场选一份再开跑。输入框支持 <code>@</code>：仓库/分支/文件、飞书文档、Meego 工作项、技能、附件、风神数据源、同事、斜杠命令。发消息后进入会话页 <code>/chat/&lt;session_id&gt;</code>：左侧历史任务，中间是对话和规划进度，右侧是产物；云电脑起来后可开 WebIDE 看同一份工作区。同一站点还能进模板市场、工作流画布 <code>/workflow/&lt;id&gt;?spaceId=…</code>、知识/技能 <code>/chat/knowledge</code>、文档库与风神 <code>/chat/resources</code>、定时与代码事件 <code>/chat/scheduled-tasks</code>、批量任务 <code>/chat/history-tasks</code>，以及无需登录就能刷的案例墙。</p>
+  <h3>能干什么</h3>
+  <ul>
+    <li>在当前空间<strong>创建会话</strong>，发一条需求就配一台云电脑；关掉页面任务继续跑，空闲后云电脑会休眠，再发消息可唤醒（超过约 30 天或轮数上限则不能恢复）。</li>
+    <li>对话里切模式：默认走复杂任务（规划者拆步、执行者动手）；<code>/ask</code> 偏问答；写代码场景会自动切到写代码/问代码；还可 <code>/code_review</code>、<code>/spec</code>。规划者会识别链接和 <code>@</code>，把仓库克隆进工作区、把飞书/Meego/附件拉下来再干。</li>
+    <li><strong>看执行过程</strong>：规划步骤实时更新；执行者可串行或并行；卡住会停在「等待你」并提问。你可以回答、改标题、标星、标关注、搜带摘要的历史会话、批量删除。</li>
+    <li>开 <strong>WebIDE</strong> 进同一台云电脑，改文件、看终端；命令行 能拿到容器里服务的可访问链接，而不是 localhost。</li>
+    <li>用<strong>模板</strong>开任务：填变量（也可从历史变量回填）后一键跑；可从一次成功会话「草稿→发布」固化，或用一段描述自动抽名称/分类/变量；可收藏、出分享链接、指定人可见、导入到自己空间。</li>
+    <li>跑<strong>工作流</strong>：画布上串触发器、Aime 模板、Bits 流水线/工作流；全局变量可被后续节点引用；节点可设人工卡点。手动跑一次，或按每天/每周、代码事件自动跑。运行可继续、取消、从某步重跑、跳步；模板节点进 <code>/chat/&lt;该节点会话&gt;?workflowRunId=…</code>。</li>
+    <li>管<strong>空间成员</strong>：搜人、加人、改角色（访客/成员/管理员）、移除；进项目空间可走权限审批。会话默认个人可见，也可项目内公开或公司内公开；别人看你的会话可走访客审批。</li>
+    <li>管空间资产：上传/启用技能，把飞书文档当知识并同步；从技能市场上架、下架、加到本空间（有冲突和安全检查）；登记 MCP（内部服务插头 / HTTP / SSE）、填鉴权、启用前校验（内部服务插头 没权限会给审批链）；维护空间 Profile（OpenSpec / TTADK / DevOps / 自定义）和斜杠命令（前缀+提示词+技能包）。</li>
+    <li>建<strong>定时任务</strong>（按模板、每天或每周、可通知飞书群）和<strong>代码事件触发器</strong>（仓库事件匹配后自动开会话，创建前会做冲突预检查）。同一模板可对飞书表格变量做<strong>批量跑</strong>，进度在历史任务页。</li>
+    <li>把会话做成<strong>回放</strong>：只读过程+产物，可点赞、做同款（fork 成新会话）。优质回放可发到<strong>案例墙</strong>（调研/代码/信息处理/数据分析等），别人能「做同款」。回放链接可推到飞书。</li>
+    <li>在会话里对接 Meego：按工作项开会话、回写节点、配「某空间某工作项类型自动拉起 Aime」。可绑 Bits 空间、看流水线。文档库可挂飞书文档/官方文档集；资源页可导入风神数据源并刷新。浏览器访问可配白名单。执行者可在云电脑里切 Go/Node/Java/Python/C++ 版本。</li>
+  </ul>
+  <h3>主站里有哪些产品对象</h3>
+  <ul>
+    <li><strong>会话</strong>：一次有目标的任务，对应一台云电脑。状态对用户可见的是：创建中、跑着、等你回复、本轮做完（空闲）、已休眠、你取消了、已关闭/失败。来源不只是你手打：定时、工作流节点、批量模板、Meego、代码事件、IDE 插件、飞书助理派过来的子任务，都会落成主站会话，历史列表可按来源筛选。会话页能看规划进度、补消息、交工具确认、看本轮轨迹；标题、可见范围、星标、关注都在这里改。</li>
+    <li><strong>空间</strong>：个人空间是你的工作台；项目空间是团队工作台，有成员和角色。空间里挂着模板、工作流、技能/知识、MCP、Profile/命令、定时与触发、文档库、风神源、Bits 绑定。先选空间再开会话——权限、技能、MCP 都按空间生效。可改名称简介、初始化新空间、列空间内资源。</li>
+    <li><strong>模板</strong>：单次 AI 任务的配方，不是工作流。里面是提示词、表单变量、可选经验步骤，以及绑定的 MCP/技能/@ 提及。可见范围：仅自己、指定人、项目内、公司公开、官方、项目预置。市场按「我的 / 收藏 / 项目 / 公开」筛，按最新、最热、常用、个人推荐排。跑模板=按配方新开一个会话；成功会话可以抽成草稿再发布。工作流里的「模板节点」引用的就是它。</li>
+    <li><strong>工作流</strong>：多步流水线。模板是可版本化的（草稿/已发布，改节点应出新版本再发布）；一次执行为 run。节点类型：定时或代码事件触发、跑一份 Aime 模板、调 Bits 流水线/工作流。入参可写死，也可引用 <code>global.变量</code> 或上一步出参。状态从排队、跑着，到等人点继续、阻塞，再到完成/失败/取消。个人可见或空间内共享。</li>
+    <li><strong>技能与空间知识</strong>：教执行者「这类事按什么规矩干」。类型包括技能包（说明+脚本+资源）、飞书文档、纯文本、文件。作用域可以是个人、本空间或系统预置；要写清「什么时候用」。可按目录管理、启用/禁用、设变量（API Key 等）、从飞书再拉一版。空间技能可提交市场（待审/通过/驳回），也可把市场技能加进来；上架前有重名冲突和安全扫描。仓库 <code>.aime/skills/</code> 里的技能也会被带进会话。</li>
+    <li><strong>MCP</strong>：接到外部系统的插头。主站侧主要是 内部服务插头（填 内部服务名，没权限走审批）、HTTP、SSE（填地址）；本地进程 不给主站用户配。先校验再创建，再填 Header/环境变量，最后启用。列表按空间，可只看内置/自定义/已启用。模板和会话都可以声明要用哪些 MCP，开跑前会再验一遍是否还能用。</li>
+    <li><strong>产物</strong>：会话里产出的文件、代码、图片、链接、项目包，按 key 多版本。用户可预览、单份或打包下载、看项目产物两个版本的 diff。链接类可以是飞书文档或部署页。删会话前会提示哪些产物还能清。执行者写进工作区的东西，和你在 WebIDE 里看到的是同一份。</li>
+    <li><strong>分享 / 回放 / 案例墙</strong>：回放是会话的只读切片（过程事件+产物），来自任务结束或你手动生成；可赞、可做同款（按权限 fork）。案例墙是挑过的回放+封面+分类，公开列表不用登录；「做同款」会检查你有没有原会话里那些仓库/文档/数据源的权限。模板也有独立分享页，可带表单预填。</li>
+    <li><strong>定时任务与触发器</strong>：定时是「到点按某模板开会话」，按天或按周，带时区和下次执行时间，可停、改、重试、看日志，结果能推飞书群。触发器目前主要是代码仓库事件：配仓库与规则，事件来了自动开会话；同一仓库规则会做冲突检查。工作流的触发节点底层也是这两套。配置页在 <code>/chat/scheduled-tasks</code>。</li>
+    <li><strong>文档库与风神</strong>：文档库是空间级资料，不是技能 SOP——飞书文档、官方文档集，按目录挂，可批量改/删、看入库任务状态。只当背景参考的文档应放这里，而不是塞进技能。风神源在资源页单独一栏：导入、刷新、看同步状态，给数据分析类任务用。</li>
+    <li><strong>Profile 与命令</strong>：Profile 是空间里的「工种包」（OpenSpec / TTADK / DevOps / 自定义），打包一组斜杠命令和技能。命令是输入框里的前缀：选中后把预设提示词（可带变量）送进会话。首页快捷指令是另一套：按空间类型和场景预置的开场白，和 Meego 里那套配置是分开的。</li>
+    <li><strong>记忆、Meego、Bits</strong>：记忆分长期和按日，可增删查，让后续会话还认得你的偏好。Meego 可按工作项开会话、查节点/角色/状态、配自动拉起规则，卡片按钮会跳回主站会话。Bits 可搜索/绑定空间、看流水线，工作流节点能直接打到 Bits。这些都在主站配置，跑起来仍是一条主站会话。</li>
+  </ul>
+  <h3>和飞书助理 / IDE 的分工</h3>
+  <p>主站是<strong>完整任务台</strong>：你要看规划怎么拆、执行者在云电脑里改了什么、打开 WebIDE、下载产物、把成功路径收成模板/工作流、管空间成员和技能/MCP——都在浏览器里做。飞书助理是<strong>随时入口</strong>：私聊或群里问一句、盯进度、把大事派出去；助理自己聊天是轻量的，真要长时间干活会在主站开一条子会话（你拿到的仍是 <code>/chat/…</code> 链接），做完再把产物捎回飞书。IDE / CloudDev 是<strong>写代码现场</strong>：改当前仓库、提 MR，会话来源会标成 IDE，过程仍可回主站看。定时、代码事件、Meego、OpenAPI 可以无人值守开跑，但过程和产物的「真身」都在主站会话里；主站不是另一个 Agent，而是规划者+执行者+云电脑这一套的操作面。</p>
+  <h3>分享时可以怎么讲</h3>
+  <p>打开 aime.bytedance.net，先选空间，再把需求丢进输入框——或选模板、快捷指令、工作流。系统会配一台云电脑：规划者看懂 <code>@</code> 和模式，执行者在里面改代码、跑命令、写飞书、提 MR。你要盯过程、开 WebIDE、拿产物，就留在主站；要在群里随口派活，走飞书助理；要在编辑器里改当前仓库，走 IDE。同一条成功路径，可以收成模板再跑、串成工作流自动跑，或收成回放让别人做同款。</p>
+</article>
+
+    <article id="d-assistant" data-title="飞书助理" data-tag="接入 · Bot / 群 / 助理页">
+<p class="lead">飞书里的常驻个人助理：随时问、盯进度、把大事派到主站去干。</p>
+
+  <h3>用户从哪进来</h3>
+  <p>用户不打开主站也能办事。进来的路就这几条，背后是<strong>同一个人助理、同一台常驻云电脑</strong>：</p>
+  <ul>
+    <li><strong>飞书私聊 Aime 机器人</strong>：搜到 Bot 点进去就能说。第一次进私聊会检查飞书授权；没授过权会推文案 + 授权卡片（24 小时内只烦一次）。授权过、助理还没建好，会当场把助理拉起来。之后每条消息会先打上「正在输入」表情，办完再摘掉。</li>
+    <li><strong>飞书群 @Aime</strong>：把 Bot 拉进群。配置了 Bot 身份后，<strong>必须 @机器人</strong>才会接；没 @ 的群消息直接丢掉，不会在群里抢话。每个群是一条独立对话线（对话线 = 该群 chat_id），和私聊、别的群互不串。在话题里 @ 它，回复会钉回同一条话题（话题路由大约留 2 小时）。</li>
+    <li><strong>主站「个人助理」页</strong>：网页私聊和飞书私聊走<strong>同一条默认对话线</strong>（同一个工作区、同一套记忆、同一批定时任务、同一份配额）。群消息不会灌进这条线。网页未读也可以再推回飞书，避免人在网页说、飞书那边不知道。</li>
+    <li><strong>本机设备通道</strong>：PC 客户端连上后，才能派「在我电脑上跑」的任务。网页/飞书只负责下指令和收结果。</li>
+  </ul>
+  <p>飞书消息进系统的路径：飞书事件打到 事件回调（主站 <code>主站</code>，自建 Bot 另走 <code>助理接口</code>）→ 去重、过滤 Bot 自己的话 → 解析账号 → 检查授权 → 初始化/唤醒助理 → 下载图片附件变成产物 → 塞进对应对话线。引用回复会把被引内容带上；卡片 2.0 那种空壳消息会再拉一次原文再处理。</p>
+  <p>容器当时不在线也有产品态，不是静音：<strong>初始化中 / 休眠唤醒</strong>会先回一句状态文案，消息照收、稍后接着干；<strong>升级中 / 加载失败 / 助理已离职 / 没有云资源</strong>会回文案并拦住，不当场派活。没有 云资源 名额时飞书里会看到「暂无可用助理」一类文案。</p>
+
+  <h3>现在拥有什么能力</h3>
+  <p>助理自己不当苦力。它的工作方式是：<strong>先回一句（send_message，飞书侧是卡片/富文本，网页侧有打字机）→ 该派的派出去 → 自己午睡等结果 → 醒了再汇报</strong>。大事默认交给任务，自己只做一句话能完的事和纯聊天。</p>
+
+  <h4>1. 当场答，或派四种执行者</h4>
+  <ul>
+    <li><strong>直接答</strong>：天气、起名、确认收到，当场 <code>send_message</code>。模型若忘了调工具、直接吐字，系统会自动改成一条发给用户的消息，用户不会看到「它想了一下但没说话」。</li>
+    <li><strong>进程内子 Agent（<code>派任务</code> 的 执行者）</strong>：默认执行者。跑在助理同一台机器上，能用文件系统、终端、搜索、看图看视频、技能、MCP。适合查数、写短文档、装技能、普通分析。最多 100 步，连续失败 10 次停。难度可标 low / medium / high；用户嫌浅，跟进一轮就升到 high。</li>
+    <li><strong>主站 Worker（<code>task_type=aime</code>）</strong>：在云上另开一个<strong>主站任务会话</strong>。助理同步建好会话，拿到 session 链接，之后每分钟看一眼进度；Worker 干完通过内部接口回结果，产物同步回助理工作区 <code>.aime/worker_tasks/&lt;任务ID&gt;/</code>。本地路径不能直接给它，文件要当附件/引用传上去。URL 附件 Worker 不吃，会改写成正文里的链接。用户可以点开那条主站会话看过程、开 WebIDE。这就是「飞书里把大事派出去」的主路径。</li>
+    <li><strong>Coco / traecli（写代码）</strong>：在助理机器上拉起代码 Agent。用户可说「用 coco / traecli」，或直接打 <code>/coco</code>、<code>/traecli</code>（可带 <code>--model</code>、<code>--mode=plan</code> 只出方案不改代码、<code>--update</code> 续同一个任务）。仓库 ≥15GB 会拒绝 traecli，改口建议用 aime 任务。</li>
+    <li><strong>本机任务（<code>local</code>）</strong>：整理桌面、看本机端口、在用户选定的工作目录里改仓库。只有设备在线才派得动；非 PC 通道如果挂了多台在线设备，会报错让用户先选定，不会猜。给用户发消息、交文件必须助理自己做，不能甩给本机任务。</li>
+  </ul>
+  <p>已经派出的活，用户说「那个报告改成看 Q4」「停掉刚才那个」，走 <code>update_task</code> / <code>/stop</code>，不另开一条。跟进如果变成完全另一种执行者（子 Agent 升级成主站 Worker），会新建任务并跟用户说明。</p>
+
+  <h4>2. 定时：提醒、日报、到点自己跑</h4>
+  <ul>
+    <li>三种设定期：<strong>相对时间</strong>（过 30 分钟）、<strong>绝对时间</strong>（明天下午 3 点）、<strong>Cron</strong>（每个工作日 10:00）。没说具体钟点时，用 daily / weekday / weekly，系统自己选时刻。</li>
+    <li>到期后不是另起一个 Bot，而是给<strong>当时那条对话线</strong>塞一条系统通知，助理按通知内容自己执行（可以再派任务、再发飞书）。</li>
+    <li>最短间隔 <strong>10 分钟</strong>；更密会拒绝，文案是「任务间隔太频繁啦，调整到间隔 10min 以上更好哦～」。</li>
+    <li>必须有截止时间；用户说「一直跑」会默认 <strong>180 天后停</strong>，并提醒到时候再确认。</li>
+    <li>定时任务清单存在助理工作区 <code>.aime/cron_task.json</code>，重启能恢复。网页配置接口也能看/改 cron 内容。</li>
+  </ul>
+
+  <h4>3. 记忆：认识你，而且群和私聊隔离</h4>
+  <ul>
+    <li><strong>工作记忆</strong>：当前这条对话线里正在聊的上下文。太长会压缩；再长会建议 <code>/clear</code>。清空后回复：「当前对话上下文已清空，长期记忆等信息会保留。」<code>/new</code>、<code>/restart</code> 和 <code>/clear</code> 是同一件事，只清当前这条线。</li>
+    <li><strong>私聊长期档案</strong>（网页私聊 + 飞书私聊共用）：<code>USER.md</code>（名字、岗位、偏好）、<code>MEMORY.md</code>（决策、教训、可复用事实）、<code>IDENTITY.md</code>（助理叫什么、人设）、<code>SOUL.md</code>（语气和边界）。第一次见面会走引导：问你是谁、怎么配合，写进这几个文件；可选把历史会话拉下来补偏好。</li>
+    <li><strong>每天流水</strong>：用户话、助理回复、派出的任务，写入当天目录。空闲时整理进长期记忆——当天流水满 30 条立刻整理；不到 30 条则再等 20 分钟；每天最多整理 10 次。</li>
+    <li><code>MEMORY.md</code> 超过 <strong>约 200 行</strong>会提示拆到 <code>memory/topics/某主题.md</code>，正文只留一行索引。</li>
+    <li>用户说「还记得上周那个结论吗」，先 <code>memory_search</code>（关键词 + 日期），再读具体文件。主站历史要用 <code>aime-session-search</code>，且<strong>用户没点名查主站历史时，群里禁止去搜</strong>，防止把别的会话抖出来。</li>
+    <li><strong>群里不加载你的 USER.md / MEMORY.md</strong>。群只有本群每日记录 <code>memory/group/&lt;群ID&gt;/daily/</code>。Prompt 里写死：不准泄露私聊、别的群、个人日程和文件。这是产品承诺，不是礼貌。</li>
+    <li>派出去的主站 Worker 会把父助理的 <code>MEMORY.md</code>、<code>USER.md</code> 以及文中点到的 topic 文件读过去，云上那台机器也认识这个人，但不会把群私聊写回去。</li>
+  </ul>
+
+  <h4>4. 飞书场景里多出来的能力</h4>
+  <ul>
+    <li>群首次进线会拉<strong>最近 1 天</strong>聊天，按约 1.2 万字截断留最新的；之后只追加增量。附件不预下载，要用再走飞书读消息技能。</li>
+    <li>消息里的仓库链接会自动识别成 @仓库；Bits MR 链接也能解析。图片、文件会先落到产物再给助理（单文件超过 <strong>100MB</strong> 直接拒，提示压缩）。</li>
+    <li>回复是飞书富文本/卡片，Markdown 链接和图片会尽量转成飞书能点的格式；产物可以再转成飞书文档发给用户。</li>
+    <li>助理空闲时会午睡等下一事件：用户新消息、后台工具跑完、定时任务到点、子任务汇报。工具超过约 3 秒会先回「后台跑着」，带任务 ID 和进度链接，不把对话卡死。</li>
+    <li>终端命令超过 10 秒也会丢到后台，可以午睡等，或按需看进度，不要轮询刷屏。</li>
+  </ul>
+
+  <h4>5. 用户能直接打的斜杠命令</h4>
+  <p>斜杠命令不经过模型，打了立刻执行。当前这条对话线生效：</p>
+  <ul>
+    <li><code>/clear</code>、<code>/new</code>、<code>/restart</code>：清空本线工作记忆，长期文件不动。</li>
+    <li><code>/tasks</code>：默认只看运行中的子任务；<code>/tasks --status=all|created|finished|failed</code> 过滤。<code>/task &lt;id&gt;</code> 看类型、状态、主站 Session 链接。</li>
+    <li><code>/stop &lt;id&gt;</code>：向还在跑的子任务发停止。</li>
+    <li><code>/crons</code> / <code>/cron &lt;id&gt;</code>：定时任务列表和详情（下次执行、已跑次数、Cron 表达式、错误）。</li>
+    <li><code>/quota</code>：今日日限和当前并发。<code>/status</code>：子任务计数 + 定时任务启用/暂停/停用 + 执行者 配额摘要。</li>
+    <li><code>/coco</code>、<code>/traecli</code>：快捷派代码任务；不带内容会打出用法（模型列表、plan 模式、续跑）。</li>
+  </ul>
+  <p>技能和 MCP 变更会在下一轮对话里通知助理，自驱跑定时任务时也会顺手检查，避免「一直没人说话，技能删了它还当自己有」。</p>
+
+  <h3>和主站任务的差别</h3>
+  <ul>
+    <li><strong>一个是常驻同事，一个是一次交付。</strong>飞书助理是长期在线的个人容器：聊完午睡、过几天还能接着认人。主站任务是 规划—执行：想一步做一步，做到交出产物就结束，不负责陪聊、不负责跨天认人（除非它是助理派出来的 Worker，才会把父助理的 MEMORY/USER 带过去）。</li>
+    <li><strong>节奏不同。</strong>主站任务同步推进，一轮工具没跑完不进入下一轮。助理是事件驱动：可以同时挂着多个后台活，自己 nap；用户插话能打断思考（当前工具会跑完再听）。</li>
+    <li><strong>入口不同，活可以是同一类。</strong>用户在主站创建的会话，看的是过程、WebIDE、产物、回放、模板和工作流。用户在飞书说「用 Aime 好好做一份分析」，助理创建的就是一个主站 Worker 会话——之后那条链接上的体验，和主站自己开任务是同一套执行者。</li>
+    <li><strong>助理默认不自己改大仓库、不自己写长报告。</strong>Prompt 要求：超过约 5 步、要深分析、要出完整交付物，必须派任务。主站任务没有「先回一句再午睡」这套社交协议，它的产品是会话页上的轨迹和产物。</li>
+    <li><strong>空间对象不同。</strong>主站有空间成员、模板、工作流、触发器、Showcase。助理吃的是个人工作区 + 技能 + MCP + 记忆文件；群是隔离对话线，不是一个「群空间」。</li>
+    <li><strong>对话线切分不同。</strong>主站一次会话一条。助理：网页私聊 ∪ 飞书私聊 = 一条；每个飞书群各一条。群回消息如果 Lane 对不上，系统不会把私聊回复误发进群。</li>
+    <li><strong>失败时用户看见的位置不同。</strong>助理侧先在飞书看到一句话和链接；要点开主站会话才能看到 Worker 逐步日志。助理进程重启后，带外部会话 ID 的 aime 任务会继续等结果；纯进程内子 Agent 未完成的会标成完成并上报，不会假装还在跑。</li>
+  </ul>
+
+  <h3>配额与边界</h3>
+  <p>下列数字来自当前代码默认值；日限按<strong>本地日历 0 点</strong>重置。配额按<strong>对话线</strong>记账：私聊（含网页）一套，每个群各自一套。日计数重启后会恢复；并发集合在重启后会丢弃，避免计数只涨不降把人卡死。</p>
+  <ul>
+    <li><strong>定时任务</strong>：每天 50 次触发。没有并发上限。超限本次跳过，错误记在这条 cron 上，用户会看到「今日定时任务运行次数已达上限（50次），如需立即执行请单独触发。」当天最后一次会额外警告：后面的定时任务今天不再跑。</li>
+    <li><strong>子 Agent</strong>：每天 500 次，同时 20 个。日限文案让助理转述「今日能量已耗尽，要不明天咱们再续？」；并发满了是「多线程烧脑忙不过来啦…」</li>
+    <li><strong>主站 Worker（aime）</strong>：助理侧<strong>不设日限</strong>，同时最多 <strong>5</strong> 个。并发满了会说「同一时间并发 Aime 独立任务数已达上限（5个）」。另外还受主站「同时 running 的会话数」全局闸（配置，0 表示不限）；撞上会提示当天任务数/资源不够。开发者和白名单用户可绕过全局会话闸。</li>
+    <li><strong>traecli / coco</strong>：无日限，同时 3 个。</li>
+    <li><strong>本机任务</strong>：无日限，同时 3 个。多台设备在线且没选定，派不出去。</li>
+    <li><strong>用户每天给助理发的消息</strong>：默认 500 条（配置 <code>MaxMessagesPerDay</code> 可改）。超了飞书会回超限文案，网页接口 403。</li>
+    <li><strong>附件</strong>：单文件 100MB。</li>
+    <li><strong>定时最短间隔</strong>：10 分钟；Cron 默认 180 天停。</li>
+    <li><strong>群上下文</strong>：回溯 1 天、约 1.2 万字；记忆装进模型也截断到约 1.2 万字。</li>
+    <li><strong>产物清理</strong>：每 24 小时扫一次，默认保留 30 天 / 总量 10GB / 每种最新 100 个版本。</li>
+    <li><strong>容器休眠</strong>：配置项默认空闲约 30 天可休眠；再说话会唤醒，飞书里会先看到一句「醒了」类状态文案。</li>
+    <li><strong>助理自身步数</strong>：可由运行配置 <code>assistant_max_steps</code> 覆盖；触顶会请用户 <code>/clear</code>，并说明历史会被收进长期记忆。</li>
+  </ul>
+  <p>查用量：在对应私聊或群里打 <code>/quota</code>、<code>/status</code>。80% 和打满会打警告标记。</p>
+
+  <h3>分享口播</h3>
+  <p>「先记住一句：飞书助理不是缩小版主站。它是住在飞书里的同事——私聊随时喊，群里 @ 它才说话，网页助理页和飞书私聊是同一个人。」</p>
+  <p>「它自己很少把大事干完。标准动作是：先回你一句，再派活。查个天气、写段短的，用身边的子 Agent；要深做、要改大项目、要完整交付，派一个主站 Worker，你会拿到一条主站会话链接，过程、产物、WebIDE 都在那儿。写代码还可以指定 coco/traecli；要动你自己电脑，得 PC 在线，才派本机任务。」</p>
+  <p>「它记得你。私聊和网页共用 USER.md、MEMORY.md；你说『记住这个』会写进去。群是另一条线：不把你的个人档案带进群，也不许把私聊抖出来。定时任务也挂在这条线上，最短十分钟一次，一天最多跑五十次，说一直跑会帮你设一百八十天的截止日期。」</p>
+  <p>「演示可以这样走：私聊说『每天十点提醒我看值班群』——看它设 cron、回确认；再说『帮我把这份数据做成分析报告，用 Aime 任务』——看它立刻回一句、派出 Worker、丢给你主站链接；最后进一个群 @ 它问私事——看它拒绝串台。配额打 <code>/quota</code>，清上下文打 <code>/clear</code>，记忆还在。」</p>
+</article>
+
+    <article id="d-ide" data-title="IDE" data-tag="接入 · 编辑器">
+<p class="lead">人在编辑器里写代码，把改仓库、问代码、审 diff 这件事交给 Aime 云电脑去干。</p>
+
+  <h3>是什么</h3>
+  <p>接入层上的「IDE」，指的是<strong>从本机编辑器把一场 Aime 会话拉起来</strong>，不是 Trae 自己的补全，也不是主站会话里那个云电脑 WebIDE。</p>
+  <ul>
+    <li><strong>Trae / IDE Copilot</strong>是兄弟产品：人在本机 VS Code / Trae 里写代码、补全、本地对话。它有自己的服务，不走 Aime 主站那套「一场会话一台云电脑」。</li>
+    <li><strong>从 IDE 进来的 Aime 会话</strong>才是这个方块：编辑器把任务派给 Aime，会话来源记成「IDE 插件」，消息来源记成「来自 IDE」。之后规划者、执行者、云电脑，和主站开一场任务是同一套。</li>
+    <li><strong>WebIDE</strong>是云电脑里的 VS Code（容器里的 code-server）。用来看 Agent 改了工作区里哪些文件、自己进去改两下。权限动作叫「打开会话的 VS Code」。它跟 Trae 不是同一个东西：Trae 在你笔记本上，WebIDE 在这场任务的云电脑里。</li>
+  </ul>
+  <p>主站会话列表里，这类任务会归到「IDE 插件任务」分组。列表按来源过滤时，IDE 会把编辑器带来的仓库标识做成稳定 ID，用来把同一仓库在 IDE 里开过的会话聚在一起。</p>
+
+  <h3>用户怎么用</h3>
+  <p>人还在写当前仓库。不想切到浏览器开主站，就在编辑器里把活派给 Aime：</p>
+  <ul>
+    <li><strong>自动改代码</strong>：默认就是「去改」。规划者会读文件、搜仓库、写文件、替换片段，复杂的派给执行者。人没说只要方案时，它会一直做到改完、验证完，再把结果说清楚。适合「帮我把这个 bug 修了」「按这个设计把接口补上」。</li>
+    <li><strong>只问代码</strong>：明确说先别动手。可以读、搜、列目录、想方案，但不能改仓库（用户点名要的报告文件除外）。适合「这段为什么这样写」「改之前先给我一个方案」。</li>
+    <li><strong>Code Review</strong>：三种现场——审当前文件、审一段 diff、审一个 MR。编辑器里发起的通常是文件或 diff，评语写回编辑器；MR 场景可以在代码平台上留评。可以带仓库自己的 Review 规则。</li>
+  </ul>
+  <p>编辑器侧把模式带进首条消息。Aime 按消息来源和模式分流：来自 IDE 且是自动模式 → 走改代码；带上文件/diff 的审代码来源 → 走 Code Review；只问则走只读。跑完进入空闲后，国内环境在实验打开时，会用飞书把「哪个仓库、哪条分支做完了」推给本人，卡片上会带到 Trae——因为人是从 Trae 派出去的。</p>
+
+  <h3>现在有什么能力</h3>
+  <ul>
+    <li><strong>改代码时能碰工作区</strong>：读文件、列目录、搜索、精确替换、写新文件；可以更新待办计划给用户看进度。连续探索太久会把「去翻仓库」交给执行者，避免把规划者上下文撑爆。</li>
+    <li><strong>只问时锁死写入</strong>：同样能读仓库，但系统会反复提醒这是只读任务，禁止动手改。</li>
+    <li><strong>审代码时分现场</strong>：文件/diff 把评论攒起来再刷回编辑器；MR 可以克隆仓库、跑命令、按规则写评。规划者最多走很深的步数，专门用审代码的模型，不走普通办事那套知识。</li>
+    <li><strong>技能和 MCP 仍可用</strong>：改代码/只问都会看仓库里的技能和空间插头，不会因为从 IDE 进来就变成「只能改文件的哑巴」。</li>
+    <li><strong>谁能打开云电脑里的 WebIDE</strong>：这是会话权限，不是「谁能用 Trae」。空间管理员默认能开；普通成员、访客默认没有这一项。打开的是这场会话的云工作区，不是你本机项目。</li>
+  </ul>
+
+  <h3>和主站关系</h3>
+  <p>进来之后就是一场普通 Aime 会话：有空间、有云电脑、能看执行过程、能拿产物、能在主站接着聊。差别只在入口和默认姿态——</p>
+  <ul>
+    <li>主站默认是「办事 / 问答」那套通用规划；IDE 进来默认对准<strong>当前仓库</strong>，三种代码模式写死。</li>
+    <li>主站可以开 WebIDE 看云电脑；IDE 入口是人已经在 Trae 里，再把活派到云上。不要把「在 Trae 里用 Aime」和「在主站打开 WebIDE」说成一件事。</li>
+    <li>CloudDev 插件是另一条来源，会话列表里单独记，不要和 IDE 插件混在一个故事里。</li>
+    <li>会话闲下来、最后一轮带了仓库产物时，飞书通知会走 IDE 专用文案；主站手动开的任务不走这条。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>「Trae 是你本机的编辑器，Aime 是云上那台会动手的电脑。人在 Trae 里写着当前仓库，不想切浏览器，就把改代码、问代码、审 diff 派给 Aime。派出去的是一场正儿八经的 Aime 会话，主站能看见、能接着聊。主站里那个 WebIDE，是云电脑自带的编辑器，用来盯 Agent 改了什么，不是 Trae。」</p>
+</article>
+
+    <article id="d-automation" data-title="自动化" data-tag="接入 · 定时 / 事件">
+<p class="lead">到点了、MR 来了、需求流转了，不用人盯着，自己拉起一场 Aime 任务。</p>
+
+  <h3>是什么</h3>
+  <p>接入层上的「自动化」，不是 Agent 自己会不会定时，而是<strong>产品里预先配好的拉起方式</strong>：定时、代码事件、Meego 流转、工作流的第一颗触发节点。配好之后，系统替用户点「新建会话」。</p>
+  <p>和主站手动开任务、飞书里喊一声、IDE 里派一单并列。跑起来之后还是同一场会话、同一套规划者和执行者。会话来源会分别记成：定时、代码触发、Meego、工作流——主站列表可以按这些分组筛。</p>
+
+  <h3>用户怎么用</h3>
+  <p>在空间里配，不在聊天框里现想：</p>
+  <ul>
+    <li><strong>定时任务</strong>：选「每天」或「每周几」，定一个钟点。绑定一个现成模板（填好变量），或者直接绑一句以后每次都要跑的话。第一次执行时间必须在未来，且不超过 14 天——用来校准时区和星期几，不是「只能跑两周」；校准之后按日/周重复。</li>
+    <li><strong>代码事件</strong>：盯指定仓库的 MR。事件可以是打开、重新打开、合入、又 push。还能按源分支、目标分支、标题、改动路径、commit 说明做匹配。同一仓库同一套规则在多个空间撞车时，创建前会做冲突检查。</li>
+    <li><strong>Meego</strong>：空间里绑 Meego 项目。需求或缺陷流到某个节点、或变成某个状态时，按工作项上的角色（谁是负责人）自动用指定模板开任务。可以配人名白名单、部门白名单；没配白名单就全员可触发。同一工作项同一状态同一模板会加锁，避免连点出一堆会话。</li>
+    <li><strong>Meego 自动化表单</strong>：在 Meego 自动化里选「派 Aime 模板」或「派 Aime 工作流」，填空间和控制面。事件进队列后异步创建，重复事件按流水号去重。</li>
+    <li><strong>工作流第一颗节点</strong>：工作流本身可以是手动点运行，也可以把第一颗做成定时或代码事件。后面再串模板、Bits 流水线。中间步骤可以卡住等人确认再继续。</li>
+  </ul>
+  <p>跑完结果往哪送，创建时就要选：发给本人飞书、新建一个群、绑已有群、或者不通知只在主站看。工作流节点也可以单独配通知。任务能暂停、恢复、删除、手动立刻再跑一次，并有执行记录（哪次触发、哪场会话、成功还是失败）。</p>
+
+  <h3>现在有什么能力</h3>
+  <ul>
+    <li><strong>定时</strong>：日/周、时区、模板或原话、空间作用域（普通任务或挂在工作流上）。列表、详情、改、停、重试、看日志都在主站。</li>
+    <li><strong>MR 触发</strong>：打开 / 重开 / 合入 / push；分支、标题、路径、commit 过滤。代码平台侧发现事件后，会先预检查触发器还在不在、人还有没有权限，再创建会话，创建后再做收尾（例如把会话挂回 MR）。自动 Review 场景里，单个空间配置触发有数量上限，避免一个 MR 在同一空间炸出一串任务。</li>
+    <li><strong>Meego 监听</strong>：目前认需求和缺陷两类工作项。节点到达/通过、或状态变更，对照空间里存的「哪个 Meego 模板 + 哪个 Aime 模板 + 哪些角色」。操作者没项目权限就跳过，不报错扰人。</li>
+    <li><strong>工作流触发</strong>：定时节点和代码事件节点只能当流程的开关。打开之后，后面每一步仍是模板任务或流水线，人可以在主站看当前跑到第几步、从某步重跑或跳步。</li>
+    <li><strong>执行身份</strong>：工作流可指定「谁触发谁跑」或「空间里固定某个人跑」。定时/触发器创建时也要带角色和空间，跑出来的会话挂在该空间下。</li>
+  </ul>
+
+  <h3>和主站关系</h3>
+  <p>配置界面在主站（空间里的定时、触发器、工作流、Meego 绑定）。自动化本身不发明第二种 Agent——它只负责<strong>在对的时间用对的模板开一场会话</strong>。人事后仍回主站看过程、开 WebIDE、拿产物、改下一句。</p>
+  <ul>
+    <li>和 OpenAPI 的差别：自动化是产品内配置，给业务同学点选；OpenAPI 是外部系统用账号调接口。代码平台 MR 自动 Review 两条腿都有：空间里配触发器是产品能力，平台侧创建任务会走开放接口那套身份。</li>
+    <li>和飞书助理里的定时不是同一张表：助理侧是个人助理配额里的提醒/定时；这里是空间级、绑模板、可通知群的任务。</li>
+    <li>工作流跑起来的每一步模板节点，主站链接进的是那一步自己的会话，不是整条工作流一个对话框。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>「自动化就是替你按新建。每周五的周报、MR 一开就 Review、需求流转到开发就拉设计稿——配一次，到点或到事件自己跑。跑出来的还是主站那场任务，能看、能改、能要产物。人不用守着页面，也不用把流水线脚本写成聊天。」</p>
+</article>
+
+    <article id="d-openapi" data-title="OpenAPI" data-tag="接入 · 集成">
+<p class="lead">流水线和其他系统直接派活，人不用打开主站。</p>
+
+  <h3>是什么</h3>
+  <p>给<strong>系统</strong>用的门，不是给人点的页面。Bits 流水线、代码平台、内部业务把「用某个模板、以某个人的身份、在某个空间开一场 Aime」写成接口调用。鉴权是「服务账号 + 用户身份」两道：系统证明自己是登记过的调用方，同时带上要替谁干活的人。</p>
+  <p>对用户来说，感知是：流水线绿了/红了旁边多一场 Aime，主站会话列表里来源叫 OpenAPI，来源 ID 是哪个系统。人可以事后打开这场会话看过程，但不需要先去主站点新建。</p>
+
+  <h3>用户怎么用</h3>
+  <p>终端用户通常不自己调。集成方（Bits、代码平台、业务后台）按两种派活方式接：</p>
+  <ul>
+    <li><strong>按模板派</strong>：传模板 ID、表单变量、可选空间。不传空间就落到这个人的个人空间；人还没开通过 Aime，会顺手开通。适合流水线里「用团队那个 Review 模板跑一遍」。</li>
+    <li><strong>按一句话派</strong>：不绑模板，直接给正文，可带附件、@仓库/@文档，必须指定空间，可选个人配置档。适合「流水线把失败日志和仓库丢给 Aime，让它自己判断怎么修」。</li>
+  </ul>
+  <p>派活时还能带：跑完是否飞书通知本人、回调一个 HTTP 地址、同步到哪些飞书群、会话要不要对空间成员公开、办事还是问答还是按方案走、语言。返回一场会话。之后系统可以查会话是否还在跑、取消它、把产物文件拉走或传上去。</p>
+  <p>Bits 是目前最完整的调用方：流水线节点可以嵌进 Aime 工作流；反过来 Bits 也能用开放接口查会话——它不仅能看见自己派的，还能看见代码平台派的、以及 MR 触发器拉起的，方便在流水线页面把 Aime 进度展示在一起。</p>
+
+  <h3>现在有什么能力</h3>
+  <ul>
+    <li><strong>派活</strong>：模板创建、带配置档的自由创建。创建前可预检查：这个人飞书授权齐不齐、有没有这个空间的「创建会话」权限；没权限可以走空间申请。</li>
+    <li><strong>管会话</strong>：按 ID 批量查基本信息（一次最多 10 个）；取消进行中的会话（已停止的不能再取消，刚创建还没绑上云电脑的也不能取消）。</li>
+    <li><strong>产物</strong>：流式上传、按路径下载原始文件。流水线可以把构建物塞进会话，也可以把 Aime 写出来的报告拉走归档。</li>
+    <li><strong>对齐外部 ID</strong>：用 Bits 空间 ID 反查绑了哪些 Aime 空间；用分享 ID 或模板 ID 取模板。这样流水线只认识自己的空间号，不必让业务记 Aime 的内部 ID。</li>
+    <li><strong>限流和锁范围</strong>：没单独配置时，默认整个调用方每分钟 5 次、同一人每分钟 2 次。可加白名单（不限）、黑名单（直接拒绝）。还可以锁死这个调用方只能用某几个模板、某几个空间，防止流水线脚本把个人空间刷爆。</li>
+    <li><strong>执行记录</strong>：每次开放接口派活都会记一条，触发类型是 OpenAPI，外部账号名就是调用方。主站排障能看出「这是哪条流水线、哪个系统派的」。</li>
+  </ul>
+
+  <h3>和主站关系</h3>
+  <p>开放接口创建的就是主站会话，不是平行宇宙。规划者、云电脑、产物、权限模型全部复用。主站多出来的是配置和观看；开放接口多出来的是<strong>机器可调用的创建/查询/取消/产物</strong>。</p>
+  <ul>
+    <li>主站 API 走登录态；开放接口走服务账号，路径在开放前缀下，跟页面用的那套内部接口分开。</li>
+    <li>内部系统也可以用封装好的 Aime 客户端调：派活、追问、拉事件流、传产物、列某个仓库的触发器。代码平台自动 Review 创建任务，走的就是这套客户端，不是让用户打开网页。</li>
+    <li>和「自动化」分工：空间里点选的定时/MR/Meego 是给业务同学的产品；开放接口是给流水线和平台的集成。MR 自动审代码会两边都出现——配置在触发器，真正创建会话时平台仍可能走开放接口。</li>
+    <li>工作流里的 Bits 流水线节点是另一种嵌套：Aime 工作流跑到某步去调 Bits，跑完回调 Aime 继续。那是工作流能力。这里说的 OpenAPI，是 Bits 或别的系统<strong>反过来</strong>在流水线里创建一场 Aime。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>「人不用为了跑一次 Aime 打开网站。流水线、代码平台拿着自己的系统账号，替某个同学在某个空间把模板跑起来。跑出来的还是主站那场任务，人回头能看、能取消、能把产物拿走。Bits 已经这么用了：流水线页面上就能盯 Aime，不必把研发从发布流程里拽出来。」</p>
+</article>
+
+    <article id="d-layer-space" data-title="产品对象 · 空间" data-tag="02 · 团队工作台">
+      <p class="lead">空间是上下文。会话是一次干活。技能、模板、工作流是让干活可规模化的三根杠杆。</p>
+      <p>没有空间，Agent 就是没入职的实习生。点下面六个方块，分别看一次任务怎么发起、怎么复用、怎么自动跑。</p>
+    </article>
+
+    <article id="d-session" data-title="会话" data-tag="产品对象 · 一次干活">
+<p class="lead">一次干活：一台云电脑、一条消息流、一份产物。</p>
+
+  <h3>是什么</h3>
+  <p>会话是用户能看见的最小「办事单位」。创建会话时，系统会在当前<strong>空间</strong>里配一台云电脑（容器），把当时已启用的 MCP、外接 Agent 快照写进会话上下文；之后所有规划、执行、产物、WebIDE 都挂在这个 会话 ID 上。关掉浏览器页不等于任务停——容器可以休眠再唤醒。主站地址形态是 <code>/chat/&lt;会话 ID&gt;</code>。</p>
+  <p>它不是聊天记录。没有会话，就没有运行时、没有产物、没有可分享的回放。</p>
+
+  <h3>用户怎么创建 / 使用</h3>
+  <ul>
+    <li><strong>主站空白开聊</strong>：主站操作（<code>新建会话</code>）。创建前会拉当前空间里已激活的 Custom + Builtin MCP，再用请求里的 <code>排除的插头</code> 剔除；同时带上已激活的 外接 Agent。可顺手绑 Meego 工作项（<code>工作项关联</code>）。</li>
+    <li><strong>用模板开跑</strong>：<code>用模板发首条消息</code>。填表单变量 <code>表单值</code>，一次创建会话 + 首条任务消息。会话会记下 <code>template_id</code>。</li>
+    <li><strong>被别的对象拉起来</strong>：定时任务、代码事件、工作流 template 节点、飞书助理 Worker、IDE、OpenAPI、Meego、快捷指令、做同款（fork/replay）都会创建会话，只是 <code>source</code> 不同。列表页按来源分组：个人助理 / 定时 / 批量 / 工作流 / IDE / Meego / OpenAPI。</li>
+    <li><strong>干活过程</strong>：发消息 <code>POST .../sessions/:id/message</code>，看过程走 SSE events，等 Agent 问人时会话进入 <code>waiting</code>；开 WebIDE、看产物、收藏、改标题/可见范围、取消或休眠、删除（可勾要不要删掉飞书产物）。</li>
+    <li><strong>分享</strong>：做成回放 主站操作；外人进会话要走访客审批 BPM。空间任务列表 <code>空间任务列表</code> 可按来源、时间、收藏筛。</li>
+    <li>开聊前有配额预检 主站操作。CLI 侧没有「aime session create」主路径，会话主要是主站/自动化产物。</li>
+  </ul>
+
+  <h3>里面有什么字段或能力</h3>
+  <ul>
+    <li><strong>身份</strong>：<code>id</code>、<code>title</code>、<code>creator</code>、<code>source_space_id</code>、<code>template_id</code>、<code>role</code>（产品上的 Agent 人设：小帅 / 小美 / 大卫，对应 三种人设）。</li>
+    <li><strong>从哪来</strong> <code>source</code>：<code>personal</code> 主站手开、<code>cronjob</code> 定时、<code>codebase_trigger</code> 代码事件、<code>workflow</code> / <code>workflow_step</code> 工作流（节点会话不出现在用户任务列表）、<code>openapi</code>、<code>meego</code> / <code>meego_platform</code>、<code>ide</code>、<code>assistant</code>、<code>fork</code> / <code>shortcut</code> 做同款与快捷指令、<code>batch_template_task</code> 批量、<code>cloud_dev</code>。主站对话框/模板/快捷指令/做同款算「用户自己开的」。</li>
+    <li><strong>谁能看见</strong> <code>scope</code>：个人 Private、公司公开 Public、项目内公开 ProjectPublic。</li>
+    <li><strong>跑到哪了</strong> <code>status</code>：中间态 created / running / waiting（等人）/ idle（本轮干完）/ stopped（休眠）/ canceled / abnormal（可重试）；终态 closed / error，不能再发消息。预热池还有 pending / bound / prepared。用户只能把状态改成 stopped 或 canceled；created/bound 时禁止改状态。</li>
+    <li><strong>还能不能续聊</strong>：<code>can_resume</code>。不能续的原因：不允许、过期（约 30 天）、已删除、超过对话轮数。</li>
+    <li><strong>会话里冻住的入职材料</strong> <code>context</code>：当时启用的 MCP 列表、外接 Agent、模板带进来的 <code>skill_ids</code>。之后空间里再关 MCP，这次会话仍按快照跑。</li>
+    <li><strong>周边能力</strong>：收藏 star、关注 attention、会话合集 collection（评测批量跑）、MCP 明细 <code>mcp_details</code>、产物列表、个人轨迹、双跑实验节点。</li>
+  </ul>
+
+  <h3>和相邻对象关系</h3>
+  <ul>
+    <li><strong>空间</strong>：会话必须落在某个 space_id。空间成员、技能、MCP 激活态，决定这次入职材料。</li>
+    <li><strong>模板</strong>：模板 run 会生会话；一次跑得好的会话可以草稿→发布成模板（连同当时的 MCP / 技能 / Agent）。</li>
+    <li><strong>工作流</strong>：工作流 run 绑一个总会话；每个 template 节点再开自己的会话（<code>task_id</code> 就是该节点 会话 ID，不是 run 的 bind_会话 ID）。可用 <code>workflow run get-by-session</code> 反查。</li>
+    <li><strong>技能 / MCP</strong>：技能按空间启用，MCP 创建时快照进会话。模板还可以额外钉死要用哪些。</li>
+    <li><strong>触发器</strong>：定时/事件到点后，干的就是「按模板开一个会话」。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>点开 Aime，你看到的不是一个对话框，是一次任务。这次任务配了一台云电脑：文件、终端、浏览器都在上面。关掉页面它还可以睡一觉再醒。模板、工作流、定时器，最后都是在造这种任务。所以做需求时先问：用户要的是「再开一次干活」，还是「把这次干活固化成下次能填表就跑」。</p>
+</article>
+
+    <article id="d-template" data-title="模板" data-tag="产品对象 · 配方">
+<p class="lead">配方：把一次成功路径做成可填变量再跑的模板。</p>
+
+  <h3>是什么</h3>
+  <p>模板（Aime Template，别和工作流模板搞混）是模板市场里的一张「工单配方」：一段 prompt、一组表单变量、可选的计划/经验 SOP，以及建议带上的 MCP、技能、Agent。别人不用从头描述需求，填几个字段就能开出一次会话。官方口径：成功路径固化，填变量再跑一遍。</p>
+
+  <h3>用户怎么创建 / 使用</h3>
+  <ul>
+    <li><strong>逛市场</strong>：主站操作 或 CLI 命令行。先搜自己的，再收藏，再公开。筛 source、label、category、scope，再排序。</li>
+    <li><strong>从会话固化（推荐）</strong>：会话页「做成模板」→ 主站操作，用 session_id 抽草稿（会带上该会话快照里的 MCP、外接、当时空间已启用的技能）→ 用户改名/变量/可见范围 → 主站操作 带 <code>draft_template_id</code> + session_id 发布，顺带抽会话经验（计划步骤 / ExpSOP）。CLI：<code>draft create</code> → <code>draft publish</code> → <code>share</code>。</li>
+    <li><strong>一句话直接建</strong>：<code>aime template create "请帮我…"</code>。后端 <code>AutoExtractTemplateMetadata</code> / <code>AutoExtractTemplateVariables</code> 抽名称、描述、分类、标签、变量；默认私有。创建来源 <code>CreateSource=Direct</code>。</li>
+    <li><strong>复制 / 导入</strong>：<code>copy</code>；公开/官方/空间预置模板可以 Import，导入后作用域可选继承、改成仅自己、或改成空间内公开。</li>
+    <li><strong>跑一次</strong>：主站填表，或 CLI <code>aime template run &lt;id&gt; -s &lt;space_id&gt; --form-value key:value</code>。变量可多次传入，后者覆盖前者。同一需求不要重复点。</li>
+    <li><strong>运营动作</strong>：收藏/取消收藏、分享链接（<code>share_id</code>）、把分享发给指定人、看历史变量、推荐位。</li>
+  </ul>
+
+  <h3>里面有什么字段或能力</h3>
+  <ul>
+    <li><strong>市场货架 source</strong>（页面不同，筛法不同）：<code>my</code> 我创建、<code>star</code> 我收藏、<code>project</code> 项目内公开、<code>public</code> 公司公开、<code>total</code>/<code>all</code> 全部、<code>cron_task_all</code> 给定时任务页（自己的优先，再按改过的新）、<code>session_list</code> 给历史任务页。</li>
+    <li><strong>职能标签 label</strong>：General / Product / Frontend / Client / Server / Algorithm / Data / Design / Operations / PMO / Quality / Other。</li>
+    <li><strong>场景分类 category</strong>：Analysis 数据分析、Study 调研、Code 代码、ProjectAsk 项目问答、Write 方案、Troubleshooting 排障、Quality 质量、Other。</li>
+    <li><strong>可见范围 scope</strong>：Private 仅自己、Public 全员、Shared 被分享人、Official 官方、ProjectPublic 项目成员、ProjectPreset 项目预置。项目空间里不能把模板设成全局 Public。</li>
+    <li><strong>生命周期 status</strong>：Draft 用户不可见、Generating 正在抽经验（可见但还不能跑）、Available 可跑。经验会因用户改过 prompt 而过期（<code>edited</code> / <code>expired</code>）。</li>
+    <li><strong>配方本体</strong>：<code>prompt_content</code>（上限约 3 万字）、<code>prompt_variables</code>（名、描述、是否必填、默认值、可否上传文件；单变量约 5 千字，超长会收成 mention）、<code>plan</code> / <code>plan_steps</code> / <code>exp_sop</code>、<code>support_mcps</code>、<code>skill_ids</code>、<code>support_agents</code>、<code>mentions</code>。</li>
+    <li><strong>创建来源</strong>：Direct / FromSession / Copy / Migration / ProjectSpace / CronTask（定时任务用一句话顺手建模板）/ Meego。</li>
+    <li><strong>排序</strong>：最新创建/更新、最热、最多使用、最近收藏、个人推荐、个人最近更新、最多收藏、最近导入。</li>
+  </ul>
+
+  <h3>和相邻对象关系</h3>
+  <ul>
+    <li><strong>会话</strong>：模板的一次执行 = 一个会话；会话也可以反哺成模板。跑的时候表单值进 <code>FormValue</code>。</li>
+    <li><strong>工作流</strong>：工作流的 <code>template</code> 节点必须引用市场里真实存在的 <code>template_id</code>，禁止编造。节点入参骨架用 <code>workflow template node-variable --node-type template</code> 从模板变量拉，漏字段运行时打不开。</li>
+    <li><strong>技能 / MCP</strong>：模板可钉死技能和 MCP。跑之前会再验一遍插头还能不能用。从会话做草稿时，技能取「该空间当前已启用」，不是「这次对话真正用过的」（目前还抄不全实际用过的那几本）。</li>
+    <li><strong>触发器</strong>：独立定时任务和代码事件触发器都<strong>必填 template_id</strong>。没有模板，触发器无处可跑。定时任务页的模板列表走 <code>cron_task_all</code>。</li>
+    <li><strong>空间</strong>：模板挂在 source_space_id；项目空间有「空间内公开 / 预置」两档，给团队发标准作业。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>模板不是 Prompt 收藏夹，是一张工单。好用的标准是：同事不用懂你怎么想的，填三个字段就能得到同类产物。路径就两条——把一次干成的会话固化，或直接写一句需求让系统抽字段。工作流和定时器都只是「到点/按步骤去跑这张工单」，所以模板质量决定后面所有自动化的质量。</p>
+</article>
+
+    <article id="d-workflow" data-title="工作流" data-tag="产品对象 · 流水线">
+<p class="lead">流水线：多步串联，中间可以卡人，步骤之间传变量。</p>
+
+  <h3>是什么</h3>
+  <p>工作流是「有序节点」组成的自动化流程，不是单次 AI 对话。产品上有三层：<strong>workflow template</strong>（流程定义，可有全局变量 <code>global_params</code>）→ <strong>version</strong>（快照，只有 <code>active</code> 会被拿去跑）→ <strong>run</strong>（一次执行，可用 <code>global_variables</code> 覆盖默认值）。主站链接：<code>/workflow/&lt;template_id&gt;?spaceId=</code>。可见范围默认 personal（仅自己）；project 是空间内共享，要用户明确说才设。</p>
+  <p>它跟 Aime 模板不是同一个东西。Aime 模板是市场里的一张配方；工作流用 <code>template</code> 节点去引用它。</p>
+
+  <h3>用户怎么创建 / 使用</h3>
+  <ul>
+    <li><strong>搭流程</strong>：主站画布或 CLI <code>aime workflow template create --title ... --nodes @nodes.json --global-params ... --release</code>。不 <code>--release</code> 就停在 draft。改节点的正道是 <code>version create</code> 再 <code>version release --status active</code>；只改标题/描述/范围用 <code>update</code> 且不要带 version-id，否则会误覆盖已发布版。</li>
+    <li><strong>手动验证</strong>：<code>workflow run create --template-id</code>。定时/事件触发的流程由服务端自己拉起，这条命令只用来手跑一遍。覆盖全局变量用 <code>--global-variables</code>（key = <code>global_params[].param_name</code>）；覆盖<strong>第一个节点</strong>入参用 <code>--form-value</code>，外层必须包 <code>{"variables":{...}}</code>。两个 flag 写反了服务端不报错，值会静默丢掉。</li>
+    <li><strong>跑起来之后</strong>：<code>run operate</code>。状态机：pending → initial → running →（waiting_interaction 卡人确认 / blocked）→ finished / failed / canceled / skipped。人工卡点 <code>manual_checkpoint=true</code> 会停在 waiting_interaction，要用 <code>continue --step-index</code> 放行。还可 re_run、jump、cancel、finish。</li>
+    <li><strong>看结果</strong>：template 节点打开的是 <code>/chat/&lt;该节点 session_id&gt;?workflowRunId=</code>；触发器、Bits 节点打开 <code>/chat/workflow/&lt;run_id&gt;?type=&amp;index=</code>。</li>
+    <li>列表可按 trigger-type（manual / cronjob / event）、scope、执行次数/时间排序。</li>
+  </ul>
+
+  <h3>里面有什么字段或能力</h3>
+  <ul>
+    <li><strong>节点类型</strong>（四选一，每个节点只填一种 param）：
+      <ul>
+        <li><code>trigger</code>：必须是<strong>第一个</strong>节点；不能单独只有一个 trigger。定时（每日/每周，第一次执行必须是未来且不超过 14 天）；或代码事件。</li>
+        <li><code>template</code>：引用市场 <code>template_id</code>，可加补充 prompt。跑起来会开一个真正的 Aime 会话。</li>
+        <li><code>bits_pipeline</code>：调 Bits 流水线（<code>bits_space_id</code> 是数字）。<strong>必须是最后一个节点</strong>。</li>
+        <li><code>bits_workflow</code>：调 Bits 工作流（例如创建开发任务）。</li>
+      </ul>
+    </li>
+    <li><strong>节点配置</strong>：执行人 <code>workflow_trigger</code>（触发者）或 <code>person_in_space</code>（指定空间成员）；<code>manual_checkpoint</code> 人工卡点；通知可绑飞书群。</li>
+    <li><strong>参数</strong>：<code>param_name</code> 节点内唯一且不能含点。<code>param_type</code>：string / file / link / code / image / number / bool / array / object。<code>source_type</code>：static 字面量，或 reference（<code>global.X</code> 或 <code>&lt;前置节点id&gt;.&lt;出参名&gt;</code>）。<code>input_param</code> 严禁 null，没有也要传 <code>[]</code>，否则运行打不开。</li>
+    <li><strong>版本</strong>：draft / active。删除模板会连带所有版本和运行，危险。</li>
+  </ul>
+
+  <h3>和相邻对象关系</h3>
+  <ul>
+    <li><strong>模板</strong>：工作流绝大多数「AI 干活」步都是跑一张 Aime 模板。改工作流前先确认 template_id 在市场里还活着。</li>
+    <li><strong>会话</strong>：每个 template 节点一次执行 = 一个 <code>source=workflow_step</code> 的会话；整个 run 还有 bind_session_id。节点会话不进用户普通任务列表。</li>
+    <li><strong>触发器</strong>：工作流把「到点/来事件」收成首节点，而不是再去定时任务页单独配一条。底层仍复用 cron / codebase 那套（时间同样 14 天窗口）。</li>
+    <li><strong>MCP / 技能</strong>：不直接画在工作流节点上，而是跟着被引用的那张模板、以及模板跑出来的会话走。</li>
+    <li><strong>空间</strong>：scope=project 时，空间成员共享这一条流水线。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>单次任务用模板；每周、每条 MR、还要接 Bits 发布，就升级成工作流。把它想成流水线：第一格常常是闹钟或代码事件，中间格是一张张 Aime 模板（每格其实会新开一次会话），最后一格可以是 Bits 流水线。中间能卡住等人点继续。改流程不要在已发布版本上覆盖，新建一个版本再切 active——这是给「可回退」留的后路。</p>
+</article>
+
+    <article id="d-skill" data-title="技能" data-tag="产品对象 · SOP">
+<p class="lead">SOP：教 Agent 这类事按什么规矩干，按需翻开，不是一上来全塞进提示词。</p>
+
+  <h3>是什么</h3>
+  <p>技能是 Agent 的知识单元：一篇 <code>SKILL.md</code>（何时用、怎么用），可选脚本、引用文档、甚至自带 MCP。运行时先按条件预过滤，再让模型根据 <code>description</code> / <code>used-when</code> 决定翻哪几本；真正内容靠 <code>view_skill</code> 按需读取，避免上下文被撑爆。它从早期「纯文本 knowledge」演进而来，现在 prompt、脚本、MCP 打成一个包。</p>
+
+  <h3>用户怎么创建 / 使用</h3>
+  <ul>
+    <li><strong>空间里上传技能包</strong>：本地目录（必须有 SKILL.md）→ 命令行 打 zip → <code>upload</code>（同名则更新，<code>--force</code> 强制新建）→ <code>enable</code>。主站对应 <code>UploadSpaceKnowledge</code>，类型选 Skill；一次最多 20 条，名称/used-when 有长度上限。</li>
+    <li><strong>从代码仓库导入</strong>：<code>ListCodeRepoSkills</code> 扫描仓库 <code>.aime/skills/</code>（也认 .coco / .claude 等目录）里的 SKILL.md → <code>PreviewSkillData</code> 预览 → 再上传进空间。内容来源记为 CodeRepo（repo_id / revision / skill_path）。</li>
+    <li><strong>把飞书文档当知识</strong>：<code>aime skill add-lark &lt;文档URL&gt; --used-when "..." --scope user|space</code>。之后 <code>sync</code> 或 <code>update --sync</code> 重新拉正文。类型是 LarkDoc，不是 Skill zip。</li>
+    <li><strong>用 / 停</strong>：<code>enable</code> / <code>disable</code>（写 user settings，不删技能）。需要 API Key 之类：<code>set-vars NAME=value</code>（编辑者定义 variable_settings，使用者填 variables；默认值会打码）。</li>
+    <li><strong>市场</strong>：空间技能可投稿审核（未投 / 审核中 / 已发布 / 驳回），别人 <code>AddMarketSkillToSpace</code> 加到自己空间；也可 fork、分享 share_id、按官方 feature 取预置技能。</li>
+    <li><strong>真正用的时候</strong>：先按场景筛一遍，再用「什么时候用」决定翻哪几本；正文按需打开，不会一次全塞进脑子。技能里的脚本不会自动跑，说明书里要写清怎么调。技能如果自带插头，第一次打开时会一起装上。</li>
+  </ul>
+
+  <h3>里面有什么字段或能力</h3>
+  <ul>
+    <li><strong>来源（产品要能讲清的四类 + 市场）</strong>：
+      <ul>
+        <li><strong>官方预装</strong>：平台自带的 SOP。按场景、任务模式、是不是项目空间来决定默不默认打开。</li>
+        <li><strong>User</strong>：用户或空间创建的技能包（zip）。空间知识 scope：space 空间共享 / user 仅自己 / system 系统目录。SkillSource：Space 或 Market。</li>
+        <li><strong>Repo</strong>：仓库 <code>.aime/skills/</code> 随代码走，导入或运行时扫描。</li>
+        <li><strong>LarkDoc</strong>：飞书文档转化；可定时同步，失败会标 UpdateFailed（冲突 / 上传失败 / 安全审核失败）。</li>
+      </ul>
+    </li>
+    <li><strong>空间知识还有</strong>：纯文本 Text、文件 File。和 Skill 一起出现在空间知识树里，目录分自定义 / 系统 / 预置。</li>
+    <li><strong>技能包字段</strong>：name、<strong>used-when</strong>（决定「什么时候该翻开」的关键句）、content、tags、use_guide_doc、session_sop、variable_settings、是否官方/预装、使用次数、被加进多少空间。</li>
+    <li><strong>SKILL.md 约定</strong>：name、description 为空则加载时跳过；可挂 scripts（sh/py/js/jar）、额外 md（不会自动进上下文）、<code>!`command`</code> 动态片段。</li>
+  </ul>
+
+  <h3>和相邻对象关系</h3>
+  <ul>
+    <li><strong>空间</strong>：技能是空间的入职手册。个人空间 vs 项目空间，启用集不同；<code>in_project_space</code> 会进系统技能的启用表达式。</li>
+    <li><strong>会话</strong>：会话不「拥有」技能，但跑的时候按空间启用集召回。模板草稿会把当时已启用的 skill_ids 抄到模板上。</li>
+    <li><strong>模板</strong>：模板可钉 <code>skill_ids</code>，让每次按配方跑都带同一套 SOP。</li>
+    <li><strong>MCP</strong>：技能可以自带 MCP 配置；也可以只写「先去调某某 MCP」。两者别互相替代——MCP 是插头，技能是说明书。</li>
+    <li><strong>工作流 / 触发器</strong>：不直接挂技能；间接通过它们调用的模板和会话生效。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>技能就是给数字同事的 SOP。不要指望把它整本贴进每一轮对话——系统会先看「这份 SOP 什么时候该用」，再用到时才翻开。团队把规范做成技能包或飞书文档，仓库把与代码同版本的规矩放进 <code>.aime/skills</code>。衡量标准不是技能数量，是 Agent 会不会在该用的时候翻到正确那一页。</p>
+</article>
+
+    <article id="d-mcp" data-title="MCP" data-tag="产品对象 · 插头">
+<p class="lead">插头：让 Agent 接到飞书、代码、数据这些系统，而不是只会空谈。</p>
+
+  <h3>是什么</h3>
+  <p>MCP（Model Context Protocol）是空间里的「工具插头」。插上并激活后，新开的会话会把这些工具带进云电脑，Agent 才能真的查日志、写飞书、打内部 API。架构图下一层「能力连接」（飞书/代码/数据…）大部分就是一组组 MCP 或等价工具。没有 MCP，技能只能纸上谈兵。</p>
+
+  <h3>用户怎么创建 / 使用</h3>
+  <ul>
+    <li><strong>看已有的</strong>：<code>aime mcp list --scope all|custom|builtin --active-only</code>。Custom 是自己配的，Builtin 是平台预置。无编辑权限时，后端不回传可编辑的 <code>config</code>。</li>
+    <li><strong>接入一个新插头</strong>：先 <code>validate</code> 再 <code>create</code>，再按需 <code>config</code>（header / env），最后 <code>activate</code>。主站 主站操作；<strong>线上只允许创建/更新个人来源</strong>（UserDefine），平台内置不能走这条。</li>
+    <li><strong>内部服务插头没权限</strong>：校验失败时会给出审批链接，批完再接。</li>
+    <li><strong>开聊时的选择</strong>：默认带上空间里已激活的自定义和内置插头；用户可以划掉某几个。模板还会再验一遍依赖的插头还在不在。</li>
+    <li><strong>开关</strong>：启用 / 停用。有的插头用户关不掉；有的新用户默认带上。</li>
+  </ul>
+
+  <h3>里面有什么字段或能力</h3>
+  <ul>
+    <li><strong>连接类型 type</strong>（用户可配三种；本地进程 在枚举里但 CLI 明确不支持，留给系统内置）：
+      <ul>
+        <li><code>cloud_sdk</code>：只填 <code>psm</code>（字节云服务标识），走 Cloud JWT；与 base-url 互斥。</li>
+        <li><code>sse</code>：只填 <code>base_url</code>，Server-Sent Events。</li>
+        <li><code>http</code>（Streamable HTTP）：只填 <code>base_url</code>。</li>
+      </ul>
+    </li>
+    <li><strong>来源 source</strong>：AIME 平台内置、UserDefine 用户自定义、Cloud 字节云。</li>
+    <li><strong>可见范围 scope</strong>：Private 个人、Public 公司、ProjectPublic 项目内。</li>
+    <li><strong>配置</strong>：<code>base_url</code> / <code>psm</code> / <code>header</code> / <code>env</code> / 是否跳过云 JWT；还有「必须由用户本人填」的 required_user_configs。个人覆盖存在 <code>user_config</code>。</li>
+    <li><strong>和人设的关系</strong>：<code>session_roles</code> 可限制只在某些 Agent 人设下出现；空表示所有人设都能用。</li>
+    <li><strong>列表字段</strong>：id、name、description、is_active、config（视权限）。Agent 看到的名字可能是 <code>name_for_agent</code>，和展示名不是同一套。</li>
+  </ul>
+
+  <h3>和相邻对象关系</h3>
+  <ul>
+    <li><strong>会话</strong>：创建瞬间快照 MCP 列表。会话开了之后再 deactivate，不影响这次已经在跑的任务。</li>
+    <li><strong>模板</strong>：<code>support_mcps</code> 声明这张配方依赖哪些插头；从会话做模板会把当时会话里的 MCP 抄过去（代码注明还不是「实际调用过的」）。</li>
+    <li><strong>技能</strong>：技能可附带 mcp.json，相当于「装这份 SOP 时连插头一起装」；日常飞书/代码/Argos 更多是空间级 Builtin MCP。</li>
+    <li><strong>空间</strong>：激活态按「空间 × 用户」记。换空间等于换工具箱。</li>
+    <li><strong>工作流 / 触发器</strong>：不单独配 MCP；跑到 template 节点、开出会话时才带上。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>MCP 就是工位上的系统权限。内部服务插头 用 内部服务名 接内部服务，SSE/HTTP 接标准 MCP 服务地址。配好只是插上，还要激活，新任务才会带上。讲产品时不要说「我们接了飞书」——要说：空间里有没有把对应插头打开；模板有没有声明依赖；这次会话创建时有没有被用户划掉。</p>
+</article>
+
+    <article id="d-trigger" data-title="触发器" data-tag="产品对象 · 自动拉起">
+<p class="lead">自动拉起：到点了或 MR 来了，不用人盯着开任务。</p>
+
+  <h3>是什么</h3>
+  <p>触发器是「不用打开主站也能开工」的那一层。产品上有两条独立入口，外加工作流的首节点，底层都是同一套定时 / 代码事件：</p>
+  <ol>
+    <li><strong>定时任务</strong>（主站「定时任务」、<code>主站</code>）：到点按模板开会话，<code>session.source=cronjob</code>。</li>
+    <li><strong>代码事件触发器</strong>（<code>CreateTriggerTask</code>）：监听仓库 MR，<code>source=codebase_trigger</code>。目前独立触发器类型只有 Codebase。</li>
+    <li><strong>工作流 trigger 节点</strong>：同样是 cronjob 或 codebase，但拉起的是整条工作流 run，不是单次模板会话。</li>
+  </ol>
+  <p>接入层还有 Meego 事件回调、OpenAPI、助理定时，那些是别的入口；这个方块讲的是空间里用户能配的「自动拉起」。</p>
+
+  <h3>用户怎么创建 / 使用</h3>
+  <ul>
+    <li><strong>定时任务</strong>：选一张模板，填变量，设每天或每周几点（时区，默认常按 Asia/Shanghai），选通知方式，保存。也支持「先写一句需求」，系统顺手建模板再挂定时。工作流里的定时节点是同一套时间规则。</li>
+    <li><strong>时间硬约束</strong>：下次执行必须是<strong>未来，且距现在不超过 14 天</strong>。这是调度窗口，不是「只能跑两周」。每周按你选的那天重复。</li>
+    <li><strong>代码事件</strong>：<strong>仅空间管理员</strong>可建。必填模板、一条自然语言 content、仓库列表、事件规则。先 <code>CheckCodeBaseTriggerConflict</code> 看同一仓库同一类 MR 事件有没有别人抢了。跳转形态：<code>/chat/scheduled-tasks?spaceId=&amp;triggerId=&amp;type=codebase</code>。</li>
+    <li><strong>事后</strong>：列表、详情、更新、删除、停用；定时可 retry、看 log；代码事件可改 enabled。工作流侧请用 workflow 的 version/release，不要在两条入口重复配同一件事。</li>
+  </ul>
+
+  <h3>里面有什么字段或能力</h3>
+  <ul>
+    <li><strong>定时 CronTask</strong>：name、template_id、form_value、schedule / schedule_type（按天 ByDay / 按周 ByWeek）、timezone、week_day、next_execute_time、role（跑的时候用哪个人设）、task_status（Running 启用 / Stopped 停用）、last_run_status（成功 / 失败 / 异常）、content（给 Agent 的任务说明）。</li>
+    <li><strong>通知 task_type</strong>（定时和代码事件共用）：AimeBot 私聊助理、NewGroup 建群、BindGroup 绑已有群、NoNotify 不通知。绑群要校验群权限。</li>
+    <li><strong>代码事件</strong>：盯仓库 + 规则。产品露出的事件是 <strong>MR</strong>：打开、重新打开、合入、又 push。可按分支、标题等匹配。</li>
+    <li><strong>工作流第一格</strong>：同样是定时（每天只取时分秒，或每周）或代码事件。工作流列表按手动 / 定时 / 事件三档筛。</li>
+    <li><strong>和工作流 run 的操作差一套</strong>：独立触发器没有 waiting_interaction；那是工作流人工卡点。触发器只管「要不要在这一刻开一次」。</li>
+  </ul>
+
+  <h3>和相邻对象关系</h3>
+  <ul>
+    <li><strong>模板</strong>：独立定时/事件<strong>必须绑模板</strong>。创建时会校验模板读权限；变量存到 cron 专用的 template_variable，执行时再灌进会话。</li>
+    <li><strong>会话</strong>：每次触发 = 新会话（来源 cronjob 或 codebase_trigger）。任务列表里能按这两组来源筛出来。</li>
+    <li><strong>工作流</strong>：若自动化是多步（生成周报再发群再跑 Bits），应把 trigger 放在工作流第一格，而不是先做一条独立 cron 再人工衔接。规则：trigger 必须为首节点，且后面至少还有一步；Bits 流水线必须在末尾。</li>
+    <li><strong>空间</strong>：定时谁都能给自己配（要有建会话权限）；代码事件是管理员能力，避免同一仓库被重复监听。</li>
+    <li><strong>MCP / 技能</strong>：触发器不单独选工具箱，沿用模板 + 当时空间激活态，在新会话创建那一刻快照。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>触发器解决的是「人不可能天天盯着」。两种钟：墙上的钟——每天/每周到点跑一张模板；代码的钟——MR 打开、合入、推送时跑。时间必须设在未来两周内，这是调度窗口，不是产品随便写的。如果这件事不止一步，不要叠很多独立定时器，去搭工作流，把触发器放在第一格。管理员才能给仓库装代码触发器，因为冲突了会重复干活。</p>
+</article>
+
+    <article id="d-layer-agent" data-title="Agent · 产品核心" data-tag="03 · 想清楚再动手">
+      <p class="lead">规划者想清楚，执行者动手。上面还有一刀：问答还是办事。这是刻意分流，不是模型忽聪明忽笨。</p>
+    </article>
+
+    <article id="d-planner" data-title="规划者" data-tag="Agent · 想清楚">
+<p class="lead">看懂这一句要干什么，自己能答就答，答不了就拆步派活。</p>
+
+  <h3>在一次任务里干什么</h3>
+  <p>用户每发一条消息，规划者先接手，不是执行者。它做三件事：<strong>看懂</strong>、<strong>选档</strong>、<strong>决定下一步</strong>。</p>
+  <ul>
+    <li><strong>看懂。</strong>并行预处理：识别链接和 @提及（仓库、飞书文档、附件、MR、技能、Meego）、下载内容到云电脑、召回知识和经验、立刻回一条 ACK，避免用户对着空白转圈。有害或被拦截的消息到此为止，不再规划。</li>
+    <li><strong>选档。</strong>按消息前缀、入口、领域选出任务模式。用户可打 <code>/ask</code>、<code>/agent</code>、<code>/spec</code>、<code>/code_review</code>；设置里有自适应 / 快速问答 / Agent 三档；写代码的会话会把自适应和 Agent 收成「写代码档」、把问答收成「只读看代码档」。模式决定规划者用哪套提示、哪组工具、哪个模型标签、要不要等场景标注、最终回复长什么样。</li>
+    <li><strong>每步动态想，不是一次排完全程。</strong>旧的「先出完整计划再执行」已经不用了。规划者每走一步问自己：读文件？搜一下？改计划？问用户？派执行者？还是直接答复？普通工具（读文件、搜索、切模式）在规划者自己手里跑完，再想下一步；只有派执行者或收尾答复，才离开这一圈。</li>
+    <li><strong>简单的自己答。</strong>自适应档里，规划者必须先判断「简单还是复杂」。简单问答只用只读的文件和搜索，没有派执行者、没有改仓库。复杂了必须切到办事档，不能猜、不能说做不了就停。</li>
+    <li><strong>复杂的拆步派活。</strong>办事档里规划者自己仍是只读：看文件、搜、读知识、改计划。真动手交给执行者。可以一次派多个（查代码的、做调研的并行），也可以中途问用户一句再继续。最后用收尾答复把结论流式写给用户。</li>
+    <li><strong>跑太久会兜底。</strong>默认最多约 100 步（代码审查可到 150）。超了会压缩历史、强制收尾，不让任务无限转。</li>
+  </ul>
+
+  <h3>用户能感知到什么</h3>
+  <ul>
+    <li><strong>思考。</strong>先有一句 ACK / 思考提示，然后是规划者的推理和「正在分析」。计划步骤会推到前端：当前在规划哪一步、状态是进行中还是完成。</li>
+    <li><strong>执行。</strong>规划者自己读文件、搜索时，用户看到的是轻量动作，没有一长串改文件、跑命令。一旦派了执行者，时间线上会出现「某某执行者正在做……」，那是下一格的事。</li>
+    <li><strong>产物。</strong>问答档里，产物就是一条聊天回复（流式打出来）。办事档里，规划者往往不直接交文件，而是等执行者干完，再用收尾答复把文档、代码、预览、MR 评论收成给用户看的那一段。</li>
+    <li><strong>被问一句。</strong>信息不够时，规划者会停下来问你（澄清，或 Spec 档里确认方案）。你回了，它再接着规划。</li>
+  </ul>
+
+  <h3>和另一个方块怎么配合</h3>
+  <ul>
+    <li><strong>对执行者：派活，不替它干活。</strong>规划者写出任务说明、人设、要用的技能、跑哪种专长（默认 / 探代码 / 做方案 / 调研 / 写文档），执行者干完交回结论。失败了规划者重想，再派或改路；成功了才收尾。Aime 3.0 规划者嘴里还是「派执行者」，底下已经路由到新版 执行者，用户不用记这个名字。</li>
+    <li><strong>对问答：自己就是主脑。</strong>问答档几乎不派执行者。规划者读一点、搜一点、直接答。自适应档默认也走这条轻量圈，确认是大事才切到办事。</li>
+    <li><strong>对办事：当项目经理。</strong>办事档要求有产物。规划者拆步、盯进度、必要时并行派多个执行者，最后把结果讲给人听。IDE 里写代码、飞书文档评论要改稿、主站里跑复杂任务，都是这条配合。</li>
+  </ul>
+
+  <h3>常见误解</h3>
+  <ul>
+    <li><strong>「规划者只会出计划、从不动手。」</strong>不是。简单问题它自己答；它也会读仓库、搜资料、改计划。它不碰的是「改代码、跑命令、写飞书、提 MR」这类重活。</li>
+    <li><strong>「规划者和执行者是两个产品。」</strong>同一次会话、同一台云电脑。规划者是领队，执行者是被派出去的人，时间线在同一条任务里。</li>
+    <li><strong>「选了 Agent 就一定更聪明。」</strong>Agent / 办事档换的是工具箱和交付要求（必须有产物、会派执行者），不是换一个更强的人格。用它问「这函数干什么」只会更慢。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>点规划者时这么讲：<em>「用户一句话进来，先到规划者。它先看懂你 @ 了什么、你要的是问答还是办事，再决定这一步谁干。简单的它自己答，复杂的拆开派给执行者。它不是一次排完全程再开跑，是走一步看一步。你在页面上看到的思考、计划条、中途问你一句，都是规划者。」</em></p>
+</article>
+
+    <article id="d-actor" data-title="执行者" data-tag="Agent · 动手">
+<p class="lead">接到规划者派的活，在云电脑里真动手，干完交回结论。</p>
+
+  <h3>在一次任务里干什么</h3>
+  <p>执行者不是和用户直接聊天的那一层。规划者说「去把这件事做掉」，它才上场。上场时带齐：<strong>人设、任务原文、技能、专长模式</strong>，在同一台云电脑里跑自己的思考—动手循环，最后交一份结论（成功 / 部分完成 / 失败 / 致命）。</p>
+  <ul>
+    <li><strong>规划者眼里它叫「派一个执行者」。Aime 3.0 实际跑的是新版 执行者。</strong>写代码、Spec、飞书改稿、飞书机器人进来的任务，都会走这条新链路。规划者侧的名字没改，免得旧模板、旧习惯断掉。</li>
+    <li><strong>专长可以换。</strong>默认：通用多步任务。探代码：快速摸清仓库结构、搜关键字、回答「这个接口怎么走」。做方案：看仓库、列改哪些文件、权衡架构。调研：按预算搜、读、收成报告。写文档：出 markdown / 飞书稿前切到写文档专长。规划者被鼓励：能并行就一次派多个探代码或调研，别让一个执行者串着查十个无关问题。</li>
+    <li><strong>工具箱跟任务模式走。</strong>写代码档给读写文件、搜索、终端、MCP；问答档根本不会把它叫来。执行者还可以再调一层「工具型子代理」（浏览器、代码审查、设计转代码等），但用户感知仍是「这个执行者在干活」。</li>
+    <li><strong>可以并行。</strong>规划者一次派多个执行者时，同一批同名的一起跑，不同批按顺序。并行有上限，避免一台云电脑被挤爆。模板里的固定 SOP 不走并行，按经验步骤来。</li>
+    <li><strong>还会上场的两种「执行者」。问用户：</strong>停下来澄清，或在 Spec 档请你确认方案。<strong>收尾答复：</strong>把最终说明流式写到会话里，用户看见的最后一段话往往是它写的，不是执行者在仓库里的碎动作。</li>
+    <li><strong>干砸了要回报。</strong>结论是失败，规划者当可恢复错误，重新规划；致命错误会把原因直接给用户看。</li>
+  </ul>
+
+  <h3>用户能感知到什么</h3>
+  <ul>
+    <li><strong>思考。</strong>执行者自己的推理会出现在这条任务步骤下，和规划者的「正在分析」分开。复杂任务里你会看到「探代码的在扫仓库」「调研的在搜资料」，像小组同时开工。</li>
+    <li><strong>执行。</strong>这是用户最能感到「真在干活」的一层：改文件、跑命令、写飞书、查数、开网页、提 MR 评论。云电脑里的文件树、终端、WebIDE 会跟着变。步骤状态会从进行中报到成功或失败。</li>
+    <li><strong>产物。</strong>执行者交回的是结论和引用，不是直接弹一个聊天气泡。用户最终看到的文档、补丁、预览、审查意见，是规划者收完这些结论再交付的。执行者内部的工具过程，默认不当成给用户的正文——所以规划者必须再收一次尾。</li>
+  </ul>
+
+  <h3>和另一个方块怎么配合</h3>
+  <ul>
+    <li><strong>对规划者：被派、回报、听重派。</strong>输入是规划者写的任务说明，加上前序步骤摘要（收尾答复故意不带长轨迹，避免把过程草稿写进终稿）。规划者上下文快满、或连续探了太多次时，会把「去搜集」也派给执行者，避免领队自己把窗口撑爆。</li>
+    <li><strong>对问答：通常不上场。</strong>快速问答和自适应里的简单题，规划者自己答。执行者是办事档的劳动力。若问答里看到一长串执行步骤，多半已经切到办事了。</li>
+    <li><strong>对办事：手脚就是它。</strong>改仓库、出 Spec、写文档、审 MR、按飞书评论改稿，都是执行者在云电脑和外部系统上碰真东西。规划者负责拆和收，执行者负责做。</li>
+  </ul>
+
+  <h3>常见误解</h3>
+  <ul>
+    <li><strong>「执行者是另一个 Bot / 另一个会话。」</strong>不是。它是这条任务里被派出去的人，共享这台云电脑和这份上下文。关掉页面任务还在，执行者也可以还在跑。</li>
+    <li><strong>「看到执行过程就等于已经交给用户了。」</strong>不是。执行者的过程用户能瞄一眼，但正式答复走收尾。规划者如果不收尾，用户会对着一堆工具日志发懵。</li>
+    <li><strong>「Aime 3.0 换了个品牌叫 执行者，能力变了。」</strong>对用户该讲：还是规划者派执行者。3.0 是执行者内部换了更能感知任务模式的实现，规划者调用方式没变。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>点执行者时这么讲：<em>「规划者想清楚『谁去干』，执行者才动手。它在同一台云电脑里改文件、跑命令、写飞书、审 MR。规划者可以一次派好几个：有人探代码，有人做调研。干完交结论，失败了规划者再派。用户感到『它真的在干活』，指的就是这一层。」</em></p>
+</article>
+
+    <article id="d-ask" data-title="问答" data-tag="Agent · 轻量分流">
+<p class="lead">能答就答。不轻易改仓库，也不启动重型办事链。</p>
+
+  <h3>在一次任务里干什么</h3>
+  <p>问答是 Agent 层的<strong>轻量档</strong>，不是「换一个笨模型」。同一套规划者，换了提示、工具箱和交付方式：<strong>目标是把话说明白，不是交出一份可提交的产物。</strong></p>
+  <ul>
+    <li><strong>用户怎么进到这一档。</strong>设置里选「快速问答」；消息前加 <code>/ask</code>；写代码的会话里，问答会被收成「只读看代码」。自适应是默认档：先当问答，判断是大事再切办事。</li>
+    <li><strong>快速问答。</strong>规划者只有只读的文件和搜索，<strong>没有派执行者、没有改计划、没有问用户那套重工具</strong>。必须用收尾答复把答案写给用户。回复按「聊天」而不是「办事交付」推到前端，看起来就是一条答，不是一棵执行树。</li>
+    <li><strong>自适应里的简单题。</strong>规划者被明确要求：先分类。简单的就在轻量圈里答完。此时派执行者、读知识、改计划、问用户都被锁住——想用必须先切到办事档。所以「这个报错是什么意思」「这段注释在说什么」不会去拉起改代码的长链。</li>
+    <li><strong>只读看代码。</strong>可以读仓库、搜、列目录，甚至工具箱里仍有写文件的能力，但提示写死：<strong>用户说了先别执行，除了用户点名要的报告，禁止改代码。</strong>用来问「这个接口怎么走」，不是用来直接提 PR。</li>
+    <li><strong>看数问答。</strong>问答时 @ 了 Aeolus 一类数据对象，会进看数问答：可以碰文件、终端和问数工具，仍然按聊天回复，不按办事交付。</li>
+    <li><strong>飞书文档评论先当问。</strong>评论进来默认先分析：是在问，还是在让改。只有听出「改 / 删 / 补 / 换成」才切到改稿办事档。拿不准，宁可切去改，也不在问答里偷偷动文档。</li>
+  </ul>
+
+  <h3>用户能感知到什么</h3>
+  <ul>
+    <li><strong>思考。</strong>有短暂思考和 ACK，但不应出现「正在派执行者改仓库」。自适应若决定升级，用户会感到节奏从「答一句」变成「开始办事」——那是切档，不是模型突然勤奋。</li>
+    <li><strong>执行。</strong>最多是读文件、搜索、查个数。没有长长的改文件列表，没有终端里装依赖，没有 MR 评论刷屏。只读看代码时，仓库不该被改掉。</li>
+    <li><strong>产物。</strong>就是这条答案。没有强制文档、补丁、预览。页面按聊天气泡收，不按「任务交付件」收。</li>
+  </ul>
+
+  <h3>和另一个方块怎么配合</h3>
+  <ul>
+    <li><strong>对规划者：规划者就是答主。</strong>问答档几乎不把活派出去。规划者读一点、想一下、直接说。自适应里它还多一个职责：判断要不要升级成办事。</li>
+    <li><strong>对执行者：默认不上场。</strong>这是产品设计，不是执行者休假。代码里问答 / 自适应即使误点了「派执行者」，也<strong>不会走出规划者那一圈去启动重型执行链</strong>——简单问答被钉死在轻量路径。</li>
+    <li><strong>对办事：一扇会开的门，不是对立面。</strong>自适应用「切模式」从问答升级到办事；文档评论从「先问」升级到「改稿」；写代码会话里问答对应只读、办事对应可写。同一套规划者，两套工具箱。</li>
+  </ul>
+
+  <h3>常见误解</h3>
+  <ul>
+    <li><strong>「问答就是模型变笨。」</strong>这是最要当众拆掉的一句。问答换的是<strong>档位</strong>：只读工具、聊天式交付、不派执行者、用问答专用的规划提示和模型标签。它不是降智，是禁止走改代码的重型链。把「这个函数干什么」丢进办事档，不会更聪明，只会更慢、更贵、还可能真去改文件。</li>
+    <li><strong>「自适应等于问答。」</strong>自适应默认像问答，但保留升级权。一旦判定是复杂任务，必须切到办事，并且被要求要有产物。用户会感到后半段突然「认真干活了」，这是切档成功，不是不稳定。</li>
+    <li><strong>「问答完全不能碰代码。」</strong>只读看代码就是为了能问仓库。边界是<strong>不改</strong>。能读、能解释、能画清调用关系；不能提交、不能顺手重构。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>点问答时这么讲：<em>「问答不是把模型换成笨的。是同一套规划者，收起改仓库的工具，自己把话说明白。自适应默认走这里：『这个报错什么意思』不会去拉执行者改代码。真要改、要出文档、要提 MR，再开门到办事。你给业务讲时就一句话：问一句就走轻的，办事才走重的。」</em></p>
+</article>
+
+    <article id="d-work" data-title="办事" data-tag="Agent · 必须交付">
+<p class="lead">必须办事、必须有产物。规划者拆步，执行者动手，最后交出来。</p>
+
+  <h3>在一次任务里干什么</h3>
+  <p>办事是 Agent 层的<strong>交付档</strong>。规划者被写死：<strong>这次用户要的是产物，不是闲聊</strong>——文档、代码、预览、审查意见、改完的飞书稿。它会读知识、拆步、派执行者，必要时问你确认，再收尾。</p>
+  <ul>
+    <li><strong>用户怎么进到这一档。</strong>设置里选 Agent；消息前加 <code>/agent</code>；自适应判断是复杂任务后自动切过来；IDE / 写代码会话里，自适应和 Agent 都会收成「写代码档」；另外还有显式的 Spec、方案、代码审查、改稿。</li>
+    <li><strong>主站 Agent / 办事。</strong>规划者只读文件和搜索，但<strong>可以派执行者、改计划、读知识、问用户</strong>。执行者可用默认 / 探代码 / 做方案 / 调研 / 写文档。连续探太多次或上下文过半，规划者必须把搜集工作派出去，自己不当检索器。收尾答复是必选项，用户最终看到的是一段交付说明，不是工具日志。</li>
+    <li><strong>写代码。</strong>规划者和执行者都能读写仓库、搜、改文件；MCP 脚本打开。规划者仍应把大块探索派给执行者。从 IDE 进来、或会话领域是写代码时，会自动落到这一档。产物是补丁、可运行改动、必要时的 MR。</li>
+    <li><strong>Spec / 方案。</strong>先深挖仓库，按用户语言写 <code>spec.md</code> + <code>tasks.md</code>（方案档写 <code>plan.md</code>），<strong>必须先问用户确认，才能写代码</strong>。你在确认框里点了，立刻按任务清单做，不再问第二遍。这是「先对齐再动手」的产品形状。</li>
+    <li><strong>代码审查。</strong>独立档：按文件 / 差异 / MR 审。规划者可以自己审小 MR；大的拆成待办派给审查执行者。产物是评论：写到 MR，或回写到 IDE 的差异视图。可以带审查规范和代码规范。</li>
+    <li><strong>飞书改稿。</strong>评论里听出要改，切到可写档，按评论改文档。和「先当问」是一对：问完确认要改，才办事。</li>
+    <li><strong>飞书助理进来的任务、写长文档。</strong>机器人入口有自己的办事档（带记忆检索）；写 markdown / 飞书稿前，规划者应切到写文档专长，写完再切回来——避免用写代码的手感去写人话。</li>
+  </ul>
+
+  <h3>用户能感知到什么</h3>
+  <ul>
+    <li><strong>思考。</strong>计划条是真的：步骤出现、状态从进行中到完成，并行时会看到好几步同时亮。Spec / 方案档会先给你看一份人话方案，等你点头。</li>
+    <li><strong>执行。</strong>时间线上有执行者，云电脑里文件在变，终端在跑，飞书 / Meego / 仓库上出现真实动作。这和问答的「读两眼就回」完全不是一种体感。任务可以关掉页面继续跑。</li>
+    <li><strong>产物。</strong>必须能指出来：一份文档、一套改动、一个预览、一组审查评论、一篇改完的飞书。收尾答复按「办事交付」推到前端，旁边通常能打开产物、进 WebIDE、看回放。没有产物却说「办完了」，是这一档没达标。</li>
+  </ul>
+
+  <h3>和另一个方块怎么配合</h3>
+  <ul>
+    <li><strong>对规划者：办事是规划者的工作模式。</strong>不是换一个角色。同一规划者，换了「必须有产物」的提示、更全的工具、以及派执行者的权利。它在办事档里当项目经理：拆、派、问、收。</li>
+    <li><strong>对执行者：没有执行者，办事就是空话。</strong>改仓库、出稿、审 MR、碰外部系统，都是执行者做的。规划者可以自己读和搜，但不能代替执行者把活干完。并行派工、失败重派，都发生在这一对关系里。</li>
+    <li><strong>对问答：门的另一侧。</strong>自适应从问答升级到办事；只读看代码对应问答，写代码对应办事；文档评论从问切到改。分享时不要说「左边是弱模型、右边是强模型」，要说「左边是答，右边是交活」。</li>
+  </ul>
+
+  <h3>常见误解</h3>
+  <ul>
+    <li><strong>「办事 = 一定改代码。」</strong>写代码只是办事的一种。出调研报告、改飞书、审 MR、按 Spec 落地，都是办事。判据是<strong>有没有交付件</strong>，不是有没有 <code>git</code>。</li>
+    <li><strong>「办事一定会派一堆执行者。」</strong>小 MR 审查可以规划者自己审完。派不派，看步子大不大、上下文会不会爆。用户该感知的是「在交付」，不是「执行者越多越好」。</li>
+    <li><strong>「从问答切到办事是模型抽风。」</strong>是自适应按规则升级：简单题锁死重工具，复杂题必须切过来且要有产物。切完之后规划者可用的工具立刻变了，所以体感会陡然认真——这是设计，要当成卖点讲。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>点办事时这么讲：<em>「办事是交活，不是聊天。规划者拆步，执行者在云电脑里改、跑、写、审，最后必须能指出产物：文档、代码、预览、审查意见。自适应会从问答把门打开走到这里；Spec 会先让你确认再写代码。和问答对比着讲最好懂：那边把话说清，这边把事办完。」</em></p>
+</article>
+
+        <article id="d-layer-caps" data-title="能力连接" data-tag="04 · 能碰到哪些系统">
+      <p class="lead">这一层不是功能清单，是手能伸到哪里。技能教规矩，插头伸手。飞书和 Meego 禁止走浏览器，不是能力不够，是安全策略。</p>
+      <p>六个方块按用户怎么说分组。设计稿还原走 Figma，不在这六个方块里，但是同一层逻辑。</p>
+    </article>
+
+    <article id="d-lark" data-title="飞书" data-tag="能力 · 办公">
+      <p class="lead">飞书是办公现场。文档、表格、多维表格、审批、消息、妙记，各走专用插头。用户丢一个飞书链接过来，Agent 不该打开浏览器去「看网页」，而该伸对应的手：下载这篇、改这个块、查这场会、列待我审的单。</p>
+      <h3>用户会怎么说</h3>
+      <ul>
+        <li>「把这份周报写成飞书文档，架构图画进去。」</li>
+        <li>「这篇评审意见帮我改掉，别新开一篇。」</li>
+        <li>「这个 CSV 转成飞书表格，表头对齐一下。」</li>
+        <li>「这个多维表格里，本周没关闭的需求列出来。」</li>
+        <li>「上周那个群里谁说过灰度时间？帮我把聊天翻出来。」</li>
+        <li>「这场会的妙记摘要和待办拉一下。」</li>
+        <li>「我待审批的单子有哪些？Kani 那张也看看。」</li>
+        <li>「按这个飞书模板把季度报告填完。」</li>
+      </ul>
+      <h3>实际能碰什么</h3>
+      <ul>
+        <li><strong>文档</strong> 读、建、改、评、搬。下载一篇飞书文档或表格；用中间稿生成新文档；按块更新已有文档（改内容，空内容等于删，也能插入）；全局评论和锚定到某段的行内评论；把指定评论标成已解决；批量迁到文件夹、知识库节点或个人空间，系统账号的文档会自动转所有权；按邮箱查人、按群 ID 查成员；下当前用户头像；校验「按模板填报告」是否齐套。</li>
+        <li><strong>表格</strong> CSV / xlsx / xls 转成飞书电子表格或多维表格。建、复制、删工作表；用本地 xlsx 初始化首行首列表头；按行列对齐后批量改单元格。用户丢来的若是知识库链接，但实际是表格（下下来是 xlsx），按表格改，不按文档改。改表格时必须同时带上文档插头，下载和创建靠它。</li>
+        <li><strong>多维表格</strong> 规划者不会默认配一张「多维表格插头」。真正动手的是技能里的脚本：知识库 / Base 链接解析成应用 token；列数据表、视图、字段、表单；带过滤的记录增删改查；批量写；附件上传下载。文档插头去下多维表格，只会下一张原始表的 CSV，没有视图、没有其它表——完整分析必须走多维表格技能。</li>
+        <li><strong>审批</strong> 查我发起的单；查待我审的任务（默认近 30 天）；拉飞书原生审批详情；第三方审批目前只吃 Kani，要用待办里带回的外部实例 ID 和跳转链接。</li>
+        <li><strong>消息与邮箱</strong> 按关键词和时间翻聊天，带 AI 摘要和引用。邮箱可列文件夹（收件、已发、垃圾、归档、定时、废纸篓、草稿），按发件人、主题、时间、附件、已读等搜，读正文和附件摘要。往群里发卡片、发 IM，是技能挂上的另一组工具，不是每个人任务里默认就有的手。</li>
+        <li><strong>妙记</strong> 用妙记 token 或会议 ID 拉基本信息、AI 摘要、章节摘要、待办、笔记文档链接，也能取媒体。用 9 位会议号加时间范围列历史会。</li>
+        <li><strong>企业文档检索</strong> 按项目 / 团队 / 个人范围搜文档，可带时间；从工作痕迹反查相关文档；批量摘要；展开某个知识库节点的树。它只负责「找到、扫一眼、理目录」，不负责把单篇下载细读，也不负责创建。单篇细读仍回文档插头。</li>
+      </ul>
+      <p>OKR 是旁边一张小插头：丢飞书 OKR 链接就能拉。日历和飞书任务列表，代码里有，但当前默认工作区插头里是关掉的——分享时不要讲成「已经能管日程」。</p>
+      <h3>边界</h3>
+      <ul>
+        <li>飞书文档、知识库、电子表格、多维表格的链接，禁止用浏览器去打开。这是硬规则，不是建议。</li>
+        <li>审批只能查，不能代批、不能代提。第三方详情只认 Kani，别的三方审批会空。</li>
+        <li>多维表格不能指望「下载一下就全了」。视图、关联、表单，要走技能脚本。</li>
+        <li>发群消息、发卡片不是默认能力。空间或技能没挂上，Agent 写得出文案也发不进群。</li>
+        <li>企业文档检索不能拿去当代码搜索、学术搜索或数仓查询。它自己就把这三件事划出去了。</li>
+        <li>画板（流程图、架构图、时序图）不能单独丢一个 drawio 文件当交付。必须嵌进飞书文档里，用户才能点开。</li>
+        <li>改已有文档必须先下载最新再改原文，不能另存一篇「更新版」交差。</li>
+      </ul>
+      <h3>和技能的关系</h3>
+      <p>lark-doc 教怎么读、建、改文档和画板：先写中间稿，再转成可分享的飞书文档；改旧文档走按块更新，不新开一篇。用户说「做成飞书」「改这篇」「画板嵌进去」，先加载它。</p>
+      <p>lark-template 和填模板语法：用户说「按这个模板填完」，章节结构听模板的，不听规划者临时改的任务切法。</p>
+      <p>多维表格技能管表 / 视图 / 字段 / 记录。文档技能管「人看的那一篇」。两件事不要混成一个插头。</p>
+      <p>Figma 不在飞书方块里。设计稿还原走独立的 Figma 插头：拉元数据、下截图、对组件。用户丢 Figma 链接，不要用飞书文档插头去硬啃。</p>
+      <h3>分享口播</h3>
+      <p>飞书这一块，请把它听成「办公现场的手」，不是「会聊天的机器人」。用户丢来一篇文档、一张表、一场妙记、一串待审批，Agent 伸的是专用插头：下载、按块改、转表格、查待办、拉会议摘要。多维表格更细，要走技能脚本，下载只会给你一张瘦 CSV。有一件事必须讲死：飞书文档和表格禁止用浏览器去打开。浏览器是另一只手，伸错地方会被安全策略挡回来。技能教的是规矩——这篇怎么写、模板怎么填、画板怎么嵌；插头负责真的碰到飞书。</p>
+    </article>
+
+    <article id="d-code" data-title="代码协作" data-tag="能力 · 研发">
+      <p class="lead">代码协作是仓库现场。克隆、改文件、本地提交、提 MR、评 MR，走 git 和代码平台插头。用户说的「Codebase」在字节是托管平台，不是「仓库」这个词本身。平台在 code.byted.org 和 bits.bytedance.net/code；Bits 上还有另一套 CR 地址。</p>
+      <h3>用户会怎么说</h3>
+      <ul>
+        <li>「把这个仓库拉下来，按需求改一版。」</li>
+        <li>「改完帮我提个 MR，先别合。」</li>
+        <li>「评一下这个 MR，问题直接打到行上。」</li>
+        <li>「这个 MR 挂了哪些 Meego？」</li>
+        <li>「Bits 上那个 CR 什么状态，评论有哪些？」</li>
+        <li>「这个仓库 merge check 扫出来的问题帮我修。」</li>
+      </ul>
+      <h3>实际能碰什么</h3>
+      <ul>
+        <li><strong>本地 git</strong> 克隆（字节仓库带用户 SSH 钥匙）、提交（提交信息会带产品埋点）。推远程通常走终端，同一把钥匙。浏览和改文件用工作区，不靠代码平台插头去「打开某个文件」。</li>
+        <li><strong>代码平台</strong> 列 / 查仓库、分支、提交；查、列、合、改 MR；看 diff 和已有评论；判断能不能合；取当前登录人。同时认 Codebase MR 链接和 Bits DevOps CR 链接。平台插头明确写了：不适合用来探索或编辑仓库里的文件，那是 git 的事。</li>
+        <li><strong>提 MR、评 MR（自家实现）</strong> 平台插头里「创建分支、创建 MR、写文件、发评论」被关掉了，避免和本地 git、和产品自己的提交流程打架。产品自己的手是：提交合并请求（描述末尾会带 Aime 建议署名，默认先建成草稿）、批量打行评、开讨论、按 MR 拉关联工作项、搜 MR、取 Bits CR 信息。</li>
+        <li><strong>自动评 MR</strong> MR 有新补丁进来，可以按仓库配置或白名单拉起评阅任务。评阅按批次看 diff，先记问题再打准确度，最后一次性推回行评。没找到「作者知道了一定会改」的问题，宁可一条都不发。</li>
+        <li><strong>旁边还会碰到</strong> 仓库说明文档插头（Deepwiki）用来读 code.byted.org 上的仓库文档。Bits 静态分析用来列 issue 和规则，场景包括质量分析、合并检查、部署检查、治理专项。Bits 工作流插头给流水线和 CR 旁路信息，并发有上限，避免一次拉爆。</li>
+      </ul>
+      <h3>边界</h3>
+      <ul>
+        <li>用户没明确说「推上去 / 提 MR」，就只许本地提交，不许推、不许开 MR。</li>
+        <li>禁止强推。默认开出来的是草稿 MR，不是直接可合的正式单。</li>
+        <li>不要用浏览器登录 code.byted.org，浏览器侧没有这套登录态，会失败。</li>
+        <li>不要用代码平台插头当文件浏览器。读文件、改文件走工作区和 git。</li>
+        <li>评阅不碰自动生成代码、mock、vendor、构建产物；不评变更前就存在的老问题；不把风格偏好当缺陷。</li>
+        <li>语义搜仓库的 Cosy 插头目前没挂在默认列表里，分享时不要讲成「已经能语义搜全库」。</li>
+      </ul>
+      <h3>和技能的关系</h3>
+      <p>git-collaboration-version-control 教分支怎么起、什么时候才许推和提 MR、浅克隆还是全历史。没它，Agent 容易在主干上直接改，或没等人点头就开单。</p>
+      <p>merge-request-review 教评阅怎么做：先读 Meego 和飞书背景，再按文件批次看 diff，问题立刻落盘，准确度过完再推评。它把「评 MR」从一次闲聊收成可重复的交付。</p>
+      <p>bits-analysis-platform-guidelines 教静态分析怎么修：只改确认的问题，跳过生成代码，疑似误报不动。</p>
+      <p>从 Figma 出前端，走 figma-design-to-code，不是代码平台插头。</p>
+      <h3>分享口播</h3>
+      <p>代码协作请讲成三步，不要讲成「它会写代码」。第一步，git 把仓库接到云电脑上，改和提交都在这台电脑里。第二步，要开单，走我们自己的提 MR，默认草稿，描述里会写是 Aime 建议的。第三步，要评单，可以人丢链接，也可以 MR 事件自己拉起；评的是这次补丁引入的问题，打到行上，空评不硬发。平台插头负责问仓库和 MR 的状态，不负责当编辑器。浏览器不要碰代码站。</p>
+    </article>
+
+    <article id="d-browser" data-title="浏览器" data-tag="能力 · 操作网页">
+      <p class="lead">浏览器是「没有专用插头时」的手。给一个具体网址，打开、点、填、抽出内容。它慢，一次只盯一页，打不开办公文档二进制。规划者默认看不见这只手，由执行者在需要交互时领走。飞书文档 / 表格 / 知识库和 Meego 链接，任何情况下都不许走浏览器。</p>
+      <h3>用户会怎么说</h3>
+      <ul>
+        <li>「打开这个页面，把表里的数抄下来。」</li>
+        <li>「这个内网站要登录，你先开，我来输验证码。」</li>
+        <li>「风神这个看板截个图，筛选先别动。」</li>
+        <li>「Libra 这个实验页看看结论。」</li>
+        <li>「搜索到这几个链接，逐个打开读一下。」</li>
+      </ul>
+      <h3>实际能碰什么</h3>
+      <ul>
+        <li><strong>指定网址交互</strong> 一次只收一个 URL，加一句要在这个页上完成的事。适合要登录、要点、要在页里逛的任务。执行者领走后，自己在页上点、填、截、抽。用户说「我来接管」，就把控制权交回给人。</li>
+        <li><strong>只读抽取</strong> 不需要在页上探索时用。搜到的外链，先搜完再一次拿一批 URL 来抽，不要边搜边打开。风神、Libra、微信页不要走这条只读抽取，那些页要交互或有专用规矩。</li>
+        <li><strong>明确该用浏览器的内网站</strong> 风神（aeolus.bytedance.net / data.bytedance.net/aeolus）、Libra 页面、bytetech.info：技能写明交给浏览器。TEA 有专用插头时先用插头，插头没有或失败再退回浏览器。Slardar 同理。</li>
+        <li><strong>登录与安全确认</strong> 飞书 SSO 这类登录，浏览器自己能走。点内网、在内网输入，要先问用户。用户同意过的地址会记进个人白名单，下次不再追问。用户连续拒绝，会进入冷却，从五分钟到一天。被安全策略拦住时，必须说清：这是 Aime 自己的策略，不是目标网站在针对谁。</li>
+        <li><strong>旁路：录制式验收</strong> 另一张插头，专门做网页端到端操作，并能把过程导出成可再跑的脚本。它不是日常「打开这个链接看看」的默认手。</li>
+      </ul>
+      <h3>边界</h3>
+      <ul>
+        <li>路径带 /sheets、/base、/wiki、/docs、/docx 的飞书链接，以及任何 Meego 链接：禁止。要看路径，不是只看域名。</li>
+        <li>不能当搜索引擎。广搜慢、动作多、一次抽不了多页。打不开 docx / pptx / xlsx 这类二进制。</li>
+        <li>data.bytedance.net 上不能点下载、不能导出。抽取页面内容代替下载。问卷站点用户明确要求下载时除外。</li>
+        <li>日期、标签这类筛选不要写进浏览器任务——它做不好条件过滤，尤其是日期。</li>
+        <li>Grafana 不要用自带检查 / 导出去下 CSV，用抽内容。</li>
+        <li>用户拒绝接管登录，内网页就停，不要假装已经进去了。</li>
+        <li>国内站和国际站网络隔离时，要请用户到对应站点重新发起，不要在这一侧硬翻。</li>
+        <li>页上如果只展示了一段 API JSON，就承认拿不到准确接口数据，不要再点来点去。</li>
+      </ul>
+      <h3>和技能的关系</h3>
+      <p>browser-usage-guidelines 是路由表，不是「怎么点按钮」的教程。它规定：飞书走飞书插头，Meego 走 Meego，Oncall 走 Oncall，Argos 走日志分析，TEA 有插头先用插头。风神和 Libra 的页面反而指定给浏览器。分享时把这张表讲清楚，比讲「我们有浏览器」有用。</p>
+      <p>Figma 设计稿不要靠浏览器扒页面，走 Figma 插头。</p>
+      <h3>分享口播</h3>
+      <p>浏览器是备选的手，不是万能的手。有专用插头的系统，先伸专用的。飞书文档、表格、知识库和 Meego，安全策略直接禁止用浏览器，这是产品红线。浏览器擅长的是：一个具体网址，要登录、要点、要在页上把内容抽出来。风神看板、Libra 实验页，反而常常要靠它。内网点下去之前会问人，人点过头会记住。用户拒绝接管登录，任务就诚实停住。</p>
+    </article>
+
+    <article id="d-data" data-title="数据实验" data-tag="能力 · 分析">
+      <p class="lead">数据实验是查数、看实验、出图的现场。风神看板、TEA 报表、Libra 实验、Bits 静态分析、RDS 库表、VisActor 出图，各走各的手。先拿到真数，再说话。没有数，就停，不编。</p>
+      <h3>用户会怎么说</h3>
+      <ul>
+        <li>「帮我看这个风神看板，核心图拉下来。」</li>
+        <li>「这个 tea-next 链接，按上周过滤重跑一遍。」</li>
+        <li>「这个 Libra 实验现在什么结论？我这个 uid 命中了哪几个。」</li>
+        <li>「这个库慢查询怎么样，帮我跑一条只读 SQL。」</li>
+        <li>「数有了，出几张图嵌进飞书。」</li>
+        <li>「这个仓库 merge check 扫出来的问题修一下。」</li>
+      </ul>
+      <h3>实际能碰什么</h3>
+      <ul>
+        <li><strong>风神</strong> 查当前用户有权限的应用、看板、表格；搜；看最近访问；拉查询配置；查单图数据；看数据集模型、对数据集跑 SQL；取过滤器选项；下载看板数据；新建 / 同步资源；出报告；对比差异；删除；截图。这是「我有权限的数」上的手，不是全公司数仓任意翻。</li>
+        <li><strong>TEA</strong> 两条不要混的线。一条是看板：列应用 → 列看板 → 列报表 → 拉报表分析，一层一层带上项目 ID、看板 ID、报表 ID，不许偷换。一条是 DSL / 链接：本地 DSL、tea-next URL，按链接或文件分析，改过滤条件出新链再拉数。结果太大时会落到本地 JSON，以文件为准。</li>
+        <li><strong>Libra</strong> 浏览有权限的应用 / 功能模块 / 实验层；列实验；看实验详情；看报告（展示、元信息、指标组、数据）；查某个用户命中了哪些实验。默认吐人话摘要，完整快照会落到工作区。国内默认查国内，国际站默认查新加坡，两边不能互相翻。</li>
+        <li><strong>Bits 静态分析</strong> 按仓库和条件列问题，列规则。场景要讲对：合并检查最常见，必须带内部 MR ID；质量分析对着默认分支；治理专项要带专项 ID。它查的是代码味道和漏洞，不是业务指标。</li>
+        <li><strong>RDS</strong> 按库名和地域列表；取表结构；看慢查询摘要；跑 SQL，结果落成 CSV。库名是 bits 这种短名，不要带读写后缀。地域按国内 / 国际 / BOE 选。</li>
+        <li><strong>出图</strong> 数已经算好了，再出一张 PNG。不做查询、筛选、聚合、自动洞察。规划者不会直接领这只手，图表执行者才领。飞书文档里的图，另听文档技能的规矩，不要拿网页出图方案去套飞书。</li>
+      </ul>
+      <p>研发效能看板（提交量、缺陷率、需求吞吐）是旁边的 DevMind 插头，不要塞进「数据实验」主叙事，免得和风神 / TEA 混成一个「看数」。</p>
+      <h3>边界</h3>
+      <ul>
+        <li>没有真数就停。不允许用假数、模拟数、主观打分去出雷达图或结论。</li>
+        <li>TEA 的看板线和 DSL 线不能混着用同一套工具、同一套口吻。</li>
+        <li>Libra：国内环境查不了新加坡 / 美东；国际环境查不了国内。</li>
+        <li>VisActor 只出图，不出分析。数没准备好，不要先画。</li>
+        <li>Bits 分析：不修生成代码，不改说不清的误报，不借机重构。</li>
+        <li>风神、Libra 的网页本身有时仍要浏览器；有插头或 CLI 时先走专用，失败再退回页面。</li>
+        <li>data.bytedance.net 上用浏览器时仍不能点下载（问卷例外）。</li>
+      </ul>
+      <h3>和技能的关系</h3>
+      <p>data-analysis 是总规矩：先看懂再算，Python 写成脚本，不在命令行里塞业务逻辑，脏数据当默认，不编造。</p>
+      <p>tea-platform-analysis 负责把用户一句话分到看板线还是 DSL 线，并强制带齐各类 ID。</p>
+      <p>libra 技能带着命令行：怎么列实验、怎么看报告、怎么查命中。它不是 MCP 列表里的一张卡，是打包好的命令。</p>
+      <p>data-visualization 管网页和静态图怎么选技术；飞书文档里的图不要读它，听文档技能。</p>
+      <p>bits-analysis-platform-guidelines 管「扫出来的问题怎么修」，和「业务看板怎么看」不是一件事。</p>
+      <h3>分享口播</h3>
+      <p>数据实验请按「用户丢来的是什么」讲，不要按系统名报菜。丢风神看板，伸风神：有权限的资源、图、数据集、截图。丢 TEA 链接，先问是看板还是改查询，两条线不能混。丢 Libra，用实验命令行看结论和命中，注意国内国际数据墙。丢仓库质量问题，那是 Bits 分析，不是看板。数算完要出图，VisActor 出 PNG；要写进飞书，再换文档那只手。一句压轴：没有数就停，不编。</p>
+    </article>
+
+    <article id="d-devops" data-title="研发运维" data-tag="能力 · 线上">
+      <p class="lead">研发运维是线上现场。查一条日志、编一次包、部到一条泳道、看值班单、看一次 panic。构建和部署不在云电脑里本地复刻平台，而是调用 SCM、TCE、Bits、Codebase CI。日志对规划者是收起来的，由日志分析技能领走。</p>
+      <h3>用户会怎么说</h3>
+      <ul>
+        <li>「这个 logid 帮我看看，关联到哪段代码。」</li>
+        <li>「这个 服务名 先编一下，再部到 ppe。」</li>
+        <li>「构建失败了，帮我看根因。」</li>
+        <li>「这个 Oncall 单什么情况，群里怎么说的。」</li>
+        <li>「Acha 这个 error id 是什么 panic？」</li>
+        <li>「提 MR 前先走一遍远程构建。」</li>
+      </ul>
+      <h3>实际能碰什么</h3>
+      <ul>
+        <li><strong>日志</strong> 按日志 ID 查；按日志 ID 加服务名查；按关键词查；看地域；把关键日志对到源码。规划者工具盘里不直接摆 Argos，避免和技能抢手。标准路径是：关键词找 ID（可选）→ 拉日志初判 → 对代码 → 该改就改、能提 MR 再提 → 最终写成飞书，固定顺序：摘要、调用链图、关键日志、代码关联、修复与 MR、结论。</li>
+        <li><strong>构建与部署</strong> 对外两件事：验证（编、部、CI、Bits 客户端、前端）和诊断（失败归因）。底下是只给这只手用的私有插头：SCM 构建、TCE 部署、接口测试、接口文档。还能触发 Bits 客户端模板构建、Codebase 流水线。验证必须带仓库在云电脑里的绝对路径，对着远程仓库跑，同步等结果，超时按小时级留。泳道名要带 ppe_ 或 boe_ 前缀。</li>
+        <li><strong>值班</strong> 按租户、时间、人搜单；用户丢 Oncall 平台链接时，优先按链接搜，保住原过滤条件；拉某个值班群的消息。不要用浏览器去翻 Oncall 页。</li>
+        <li><strong>Panic</strong> 定位小助手。拿 error id（和可选环境）拉 panic 详情。只解释这一次崩溃，不在这里替你改代码、提 MR——那是代码协作的后半段。</li>
+      </ul>
+      <p>安卓构建大盘（Hummer）、按服务名查 IDL 和生成仓库（Overpass）是同层旁路，主叙事不必展开，有人问再补一句。</p>
+      <h3>边界</h3>
+      <ul>
+        <li>不要自己写脚本、curl、本地复刻 SCM / TCE / Bits / Codebase CI。平台的事走 构建部署这只手。</li>
+        <li>构建部署这只手 不做本地编译、本地跑、本地测、本地部署。</li>
+        <li>缺 服务名、缺泳道时，先调用一次让工具自己问缺什么，不要开会式先把参数问完。</li>
+        <li>代码写完收尾时，一次只提下一步：没推先推，没构建先构建，构建过了再提部署。不要一次甩出整条发布流水线。</li>
+        <li>Argos 不要用浏览器、终端或 Python 去「调平台」。最终交付默认是飞书文档，还要有调用链图；中途权限失败或日志全正常，也要交已有信息的文档。</li>
+        <li>Oncall、Argos 有专用手，不要改道浏览器。</li>
+      </ul>
+      <h3>和技能的关系</h3>
+      <p>argos-log-diagnosis 把「看个 logid」收成六段可交付的排障，并规定必须出飞书、必须有调用链图。没有它，日志插头只是查，交不出一份能转发的结论。</p>
+      <p>devops-tool 教什么时候验证、什么时候诊断、写完代码下一步只说一句、提 MR 前怎么走远程构建。私有的 SCM / TCE 插头不直接暴露给规划者点菜，避免和这只手抢活。</p>
+      <h3>分享口播</h3>
+      <p>研发运维讲四件事就够。日志：丢 logid，走排障技能，对到代码，最后交一篇带调用链的飞书，不要让人自己去 Argos 点。构建部署：说「编一下 / 部一下 / 失败了看看」，走同一只运维手，对着远程仓库，不在云电脑里假装自己是发布平台。值班：丢 Oncall 链接，按原条件搜，能进群看消息。Panic：丢 Acha 的 error id，先看清崩溃，再决定要不要转到改代码。规划者看不见 Argos 那张卡，是故意的，怕它跳过排障规矩。</p>
+    </article>
+
+    <article id="d-meego" data-title="Meego" data-tag="能力 · 项目">
+      <p class="lead">Meego 是项目现场。空间是团队工作区，工作项是需求、缺陷、任务。Agent 能查、建、改、流转、传附件；Aime 空间能绑一批 Meego 空间；工作项节点或状态变化，能自动拉起模板或工作流。全程禁止用浏览器打开 Meego。</p>
+      <h3>用户会怎么说</h3>
+      <ul>
+        <li>「这个需求现在什么状态？详情和附件拉一下。」</li>
+        <li>「按这个视图把本迭代缺陷列出来。」</li>
+        <li>「按字段帮我建一个缺陷，别乱填。」</li>
+        <li>「把这个工作项流转到下一节点。」</li>
+        <li>「我们空间绑一下业务线那个 Meego。」</li>
+        <li>「需求进开发节点，自动跑那套排期模板。」</li>
+      </ul>
+      <h3>实际能碰什么</h3>
+      <ul>
+        <li><strong>空间与工作项</strong> 列、搜空间；按简称拿空间详情；识别用户丢来的链接是空间、工作项还是视图。按空间和时间列工作项；列当前用户在各空间里的工作项；按视图链接列；按关联列。按工作项链接拿详情。创建前先拉字段元数据，再从零创建或从文件创建。更新字段。下载、上传附件。看工作流、做流转。加入相关群。 产品词要讲准：空间、工作项、迭代、版本、业务线、视图（全景、Story、Issue、自定义）。业务线是树，问一条线要把子线算进去。</li>
+        <li><strong>空间绑定</strong> Aime 空间有一份平台配置，里面是已绑的 Meego 空间列表。用户按名称或链接搜自己有权限的项目，能看到是否已经绑过，再追加、覆盖或去掉。项目空间里搜 Meego，优先已经绑上的那些，避免翻到别的业务线。</li>
+        <li><strong>自动化拉起任务</strong> 两条路，分享时分开讲。一条是空间里配的调用规则：按工作项类型、Meego 模板，挂节点流或状态流；每个节点 / 状态可绑 Aime 模板、是否自动调用、通知给谁、模板变量；可加人员或群白名单。到点就按模板起会话，并和工作项绑在一起，避免同一节点反复拉起。 另一条是 Meego 自动化里派过来的事件：工作项创建、状态变、节点变、完成、更新、终止、恢复、节点排期、定时、动态时间。目标可以是「跑一个模板任务」或「跑一个工作流任务」。要带控制面（国内 / 国际），对不上会转到对的一侧。同一事件短时间会去重。</li>
+        <li><strong>和代码、文档怎么接</strong> 评 MR 时要先读挂上的 Meego。代码平台也能按 MR 反查工作项。工作项详情里的飞书链接，必须用飞书插头下载，不能用浏览器。项目空间里还能靠知识图谱找这个工作项关联的 MR。</li>
+      </ul>
+      <h3>边界</h3>
+      <ul>
+        <li>禁止用浏览器打开 Meego。项目空间技能把这写成全程禁止。</li>
+        <li>创建、更新必须走官方工具，禁止自己打接口、自己改库。创建前必须先拉元数据。枚举字段填选项 ID，不填显示名。</li>
+        <li>更新是整段覆盖。只改一个角色的人，也要把其它角色一并带上，否则会被写成「只剩这一个角色」。</li>
+        <li>缺的字段不要用别的字段凑，不要擅自填默认值。算不清的指标不要猜，问人。</li>
+        <li>空单元格就是空，分析时不许拿别的值填上，除非用户点头。</li>
+        <li>自动化没有控制面、控制面不是国内或国际，事件会被丢掉。未知事件类型直接确认收到，不起任务。</li>
+        <li>Meego 不是飞书日历，也不是值班 Oncall。日程和值班走旁边的插头。</li>
+      </ul>
+      <h3>和技能的关系</h3>
+      <p>meego-platform-guidelines 管两件事：导出的表格怎么分析（多表、空值、业务线树、不许编数据）；工作项怎么建和改（先元数据、后校验、覆盖写、树形字段要带层级）。</p>
+      <p>project-space 规定：在项目空间里问需求、缺陷，全程不用浏览器；先用 Meego 插头，详情里的飞书再用飞书插头；搜索优先已绑定空间。</p>
+      <p>自动化「拉起任务」本身不是技能，是触发器和工作流那一层。Meego 方块负责「事件从哪来、绑到哪个空间」；模板和工作流负责「拉起来之后跑什么」。</p>
+      <h3>分享口播</h3>
+      <p>Meego 请讲成三层，听众一下就能对上图。第一层，人在会话里丢链接：查详情、列视图、建缺陷、改字段、流转、传附件，全部走专用插头，浏览器不许碰。第二层，Aime 空间绑一批 Meego 空间，以后搜索和自动化都认这批，不会串到隔壁业务。第三层，节点到了或状态变了，按你们配的模板或工作流自己起任务，会话回写到这条工作项上。建和改很严：先读字段配置，更新是覆盖，不编、不猜、不拿错字段凑数。工作项里嵌的飞书，再换飞书那只手。</p>
+    </article>
+
+    <article id="d-layer-infra" data-title="基础设施" data-tag="05 · 看不见但必须有">
+      <p class="lead">云工作区是手，知识库是入职材料，模型是脑。产品体验的很多「慢、断、不记得」，其实出在这一层。</p>
+    </article>
+
+    <article id="d-runtime" data-title="云工作区" data-tag="底座 · 一台能动手的电脑">
+<p class="lead">每次干活配一台云电脑：有文件、终端、浏览器，还能开 WebIDE。</p>
+
+  <h3>用户能感知到什么</h3>
+  <p>用户看不见「容器」这两个字，看见的是：这个会话有一台能动手的电脑，关掉网页它还在干。</p>
+  <ul>
+    <li><strong>终端。</strong>会话里能看到命令在跑：装依赖、跑测试、git、脚本。输出是活的，不是事后贴一段日志。默认就是一台 bash，工作目录在这台云电脑上。</li>
+    <li><strong>文件。</strong>Agent 读、写、搜、改的文件都在这台电脑的磁盘上。用户能看目录、看 diff、看产物；产物侧也有文件树。不是「模型在脑子里虚构了一份代码」。</li>
+    <li><strong>WebIDE。</strong>会话可以打开云端编辑器，进到<strong>同一份工作目录</strong>。人可以进去盯、改、自己跑命令。这是这台云电脑上的 IDE，不是 Trae / 本地编辑器那个入口。</li>
+    <li><strong>浏览器。</strong>要打开指定网页、点页面时，用的是这台电脑旁边挂着的浏览器，不是用户自己的 Chrome。飞书文档、Meego 不要走这条路，走专用能力。</li>
+    <li><strong>关掉页面还能续。</strong>任务不是绑在浏览器 tab 上的。人去开会，它还在这台电脑里干活；回来能接着看过程和产物。</li>
+    <li><strong>回退消息。</strong>用户把对话拖回某一轮，磁盘上的工作状态也会回到当时，不是只擦掉聊天气泡。</li>
+  </ul>
+
+  <h3>底下在干什么</h3>
+  <p>用人话讲：<strong>一个会话 = 一台云电脑</strong>。不是所有会话挤在同一台机器上，也不是聊一句起一次进程就扔。</p>
+  <ul>
+    <li><strong>一台电脑里有几块。</strong>干活的进程（规划者 / 执行者跑在这里）、给用户开的 WebIDE 和终端、给 Agent 用的浏览器、调试时拉文件的通道。四块在同一台电脑上，所以人打开 WebIDE 看到的文件，就是 Agent 刚改的那些。</li>
+    <li><strong>工作区。</strong>启动时会备好一块磁盘工作区和默认终端。Agent 列目录、读文件、改文件、跑 bash、克隆仓库，都发生在这里。本地开发时浏览器那一块可能没有；线上才是完整的「电脑 + 浏览器」。</li>
+    <li><strong>状态要落盘。</strong>对话、记忆、自定义状态会写到这台电脑的磁盘。睡醒之后从磁盘装回来，才能接着干。只活在内存里的东西，醒了就没了。</li>
+    <li><strong>闲下来会存快照，再睡。</strong>一轮任务结束进入空闲，会先存快照，再准备休眠。下次用户说话，把电脑叫醒，把当时的状态装回去。消息回退则是：先把磁盘滚到旧版本，再装回内存。</li>
+    <li><strong>生命周期。</strong>第一次启动要准备环境；之后每次醒过来是「接着干」不是「重开一张白纸」。收到消息开始干，干完一轮停手；用户中途打断，不算正常停手。工具调用前后也可以挂钩子，产品上表现为「它先准备、再动手」。</li>
+    <li><strong>现在做不到的。</strong>设计上曾想一台电脑里跑多个 Agent，实际上文件、终端、浏览器都默认「这台电脑只有一个主人」。不要对用户承诺「两个会话共用一台电脑、磁盘互通」。</li>
+  </ul>
+
+  <h3>对体验的影响</h3>
+  <p>这一层决定 Aime 像不像「会办事的同事」，而不像对话框。</p>
+  <ul>
+    <li><strong>WebIDE 是这台电脑的窗户，不是另一个产品入口。</strong>主站会话里开 WebIDE，人和 Agent 盯同一份目录。Trae / IDE 入口是人已经在本地写代码时把活派进来，工作区不在这台云电脑上。分享时千万不要把两件事讲成同一个 Tab。</li>
+    <li><strong>没有这台电脑，执行者只能聊天。</strong>改仓库、跑命令、出预览、交文件，都依赖磁盘和终端。规划者可以在只读文件上想清楚；真动手必须落到这台电脑。</li>
+    <li><strong>关掉页面 ≠ 停工；闲下来才会睡。</strong>人离开，任务可以继续。电脑不会永远开机：闲置一段时间会休眠，再发消息要先唤醒，用户会感到「这一下有点慢」。任务正在跑时，不会因为暂时没刷事件就被立刻睡死；跑太久也会有上限，防止卡死占着机器。默认大约一天没动静才睡，大约二十天内还能再叫醒；再久这台电脑会被清掉，会话就续不上了。<em>休眠 / 唤醒的计时、配额、失败怎么表现，后续可以单独聊。这里先记住：云电脑不是一次性的，也不是永不回收的。</em></li>
+    <li><strong>快照和回退是体验，不是运维彩蛋。</strong>用户回退一轮，期望文件和对话一起回去。醒过来如果状态没落盘，就会「话还在，活丢了」。</li>
+    <li><strong>一台会话一台电脑。</strong>新开会话就是新电脑。不要假设上次会话里装好的依赖、clone 好的仓库，下一次还在。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>「Aime 不是在对话框里假装改代码。每个会话配一台云电脑：有文件、有终端、有浏览器，还能开 WebIDE。你关掉页面，它还在那台电脑里干活。WebIDE 是这台电脑的窗户，别和本地 IDE 入口搞混。电脑闲了会睡、再说话会醒，细节后面单独讲——先记住，这是一台能续上的电脑，不是聊一句起一次的临时进程。」</p>
+</article>
+
+    <article id="d-knowledge" data-title="知识库" data-tag="底座 · 检索与入职材料">
+<p class="lead">入职材料按需翻，不一次塞进脑子。项目空间还能检索文档、服务和用例。</p>
+
+  <h3>用户能感知到什么</h3>
+  <p>用户在空间里管的是「给同事看的入职包」，不是一个搜索框那么简单。</p>
+  <ul>
+    <li><strong>空间知识 / 技能。</strong>空间设置里有目录。可以建文件夹，上传四类东西：<strong>纯文本、飞书文档、文件、技能包</strong>。每条都有名字，更关键的是「<strong>什么时候用</strong>」——这是给 Agent 看的标签，不是给用户看的摘要。</li>
+    <li><strong>使用时机可以帮你写。</strong>用户填内容后，可以让系统根据正文生成「什么时候用」。写得越像使用场景，Agent 越找得到。</li>
+    <li><strong>个人开关。</strong>同一空间里，我可以关掉某条知识，不影响别人。技能还可以带变量：编辑者定义，使用者填自己的值。</li>
+    <li><strong>状态。</strong>新传上去可能先「检查中」，通过才可用。失败常见三种：和已有知识冲突、安全没过、文件没传上去。飞书文档、技能包会走更严的检查。</li>
+    <li><strong>来源不止手写。</strong>官方预装、技能市场、仓库里的 <code>.aime/skills/</code>、飞书文档转技能，都能进空间。市场里的和仓库源可能有版本差，界面会标出来。</li>
+    <li><strong>项目空间的资料库。</strong>团队把日常文档、云服务、测试用例、代码仓库收进来。Agent 做需求、查服务、找用例时，先在这份资料里翻，而不是上来问人。文档在云电脑里也能当普通文件打开（目录在项目文档下，量级上限大约一万篇 Markdown）。</li>
+    <li><strong>会话里 @ 技能。</strong>这次任务额外指定「先看这份 SOP」。不是把空间里所有知识一次性贴进对话。</li>
+    <li><strong>官方文档集。</strong>空间可以挂官方 wiki 文档包，相当于团队不用自己再导入一遍公共文档。</li>
+  </ul>
+
+  <h3>底下在干什么</h3>
+  <p>产品上容易把「知识库」说成一件东西。底下其实是<strong>两套、再加一套内置</strong>，Agent 都是「先看目录，再按需读全文」。</p>
+  <ul>
+    <li><strong>空间知识 = 入职 SOP。</strong>系统先按「使用时机」做一轮挑选（必要时再让模型从候选里勾），<strong>不会把全文一次性塞进上下文</strong>。要读哪一份，执行者调用「按路径读技能 / 知识」：空间知识、用户技能、内置技能、仓库技能，路径不一样，工具是同一把。引用文档默认也不自动加载，点名才读。</li>
+    <li><strong>项目资料库 = 可检索的团队记忆。</strong>飞书文档 / wiki 树导入后会切片、做向量，检索时关键词和语义两路一起找，再拼回段落。项目空间这份资料默认对空间成员可见。这是「在一大堆文档里搜相关段落」，和上面的 SOP 不是同一条路。</li>
+    <li><strong>知识图谱。</strong>项目空间里，Agent 可以按需求搜：服务名和接口、仓库和目录范围、代码片段位置、服务拓扑和调用链、用例集。图谱给的是路标（哪份仓库、哪个服务、哪条链路），真正读代码还要进仓库；真正读文档还要打开文件或飞书。</li>
+    <li><strong>内置技能。</strong>平台自己带的 SOP（怎么用浏览器、怎么写飞书、怎么做项目空间任务……）。先按场景过滤，再用模型勾选，同样是目录 + 按需读。项目空间那条技能会要求：模糊问题先查图谱，少用「问用户」；飞书 / Meego 走专用能力，不要用浏览器去爬。</li>
+    <li><strong>体积和规矩（对体验有用的上限）。</strong>名字大约 64 字；「使用时机」普通知识大约 300 字、技能大约 1024 字。纯文本大约一万字，飞书文档大约两万字，普通文件大约 10MB，技能包大约 20MB。超了就传不上去或截断，用户会以为「我明明写了它怎么看不见」。</li>
+    <li><strong>安全与冲突。</strong>技能和飞书文档会做安全检查；和已有知识撞车会标冲突。检查没过，这条对 Agent 等于不存在。</li>
+  </ul>
+
+  <h3>对体验的影响</h3>
+  <ul>
+    <li><strong>知识不是越多越聪明，是目录好不好用。</strong>「使用时机」写「团队规范」等于没写；写成「改 RPC 接口、补单测、对 Bits 流水线时先读」才找得到。生成使用时机是为了降低这个门槛。</li>
+    <li><strong>Agent 漏看资料，优先查三件事：</strong>个人是不是关掉了、检查是不是没过、使用时机是不是和这次任务对不上。不要先骂模型。</li>
+    <li><strong>项目空间的价值是少问人。</strong>文档、服务、用例、仓库都在，模糊需求应先检索再动手。图谱找不到实现细节是正常的——它指路，不代替读代码。</li>
+    <li><strong>SOP 和资料库不要做成同一个需求。</strong>「把这篇飞书变成团队规矩」走空间知识 / 技能；「把这个 wiki 空间变成可搜的资料」走文档导入和检索。混在一个入口，用户不知道该填使用时机还是该等切片完成。</li>
+    <li><strong>引用文档要主动读。</strong>技能正文里链到的补充说明，不会自动进脑子。用户觉得「技能里明明写了」，往往是 Agent 还没去翻那一页。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>「知识库不是一个什么都往里倒的网盘。空间里的知识和技能，是给数字同事的入职材料：什么时候用、用的时候再打开看，不会一次全塞进脑子。项目空间另外还有一摊团队资料——文档能搜，服务和用例能查图谱。你要问它聪不聪明，先问入职材料写清楚了没有、资料库接进来了没有。」</p>
+</article>
+
+    <article id="d-model" data-title="模型" data-tag="底座 · 规划与执行用的脑">
+<p class="lead">产品不绑死某一个模型名。规划者和执行者可以挂不同的脑。</p>
+
+  <h3>用户能感知到什么</h3>
+  <p>用户几乎看不到「模型」这三个字，但能感到快慢、深浅、会不会换路再试。</p>
+  <ul>
+    <li><strong>思考和回答是流出来的。</strong>规划者在想、执行者在动手，过程一条条出现。这是调用模型的流式结果，不是整段生成完再贴。</li>
+    <li><strong>不同任务手感不一样。</strong>随口问一句，和改仓库、写文档、做 Code Review，背后可以不是同一套脑。用户会觉得「问答很快、办事更沉」，这是分流 + 不同场景配置，不是模型忽聪明忽笨。</li>
+    <li><strong>界面不强调模型商标。</strong>主站不会把「当前是某某型号」当成卖点。被问用的哪个模型，正确答法是：按场景配，而且会变。</li>
+    <li><strong>偶尔会顿一下再继续。</strong>主路限流或不可用时，会按备用名单换一条路再试。用户感到的是「卡了一下」，不是「换了个产品」。</li>
+    <li><strong>有些内容会被拦住。</strong>进出都有安全检查。被拦时像任务失败，不是模型突然不会说话。</li>
+  </ul>
+
+  <h3>底下在干什么</h3>
+  <p>用人话：上面所有「想」和「写」，都经过同一道门。门后面有很多家供应商，产品只认<strong>场景标签</strong>，不认某一个商品名。</p>
+  <ul>
+    <li><strong>场景标签 → 模型。</strong>运营在配置后台给每个场景挂：用哪颗脑、温度、长度上限、要不要深度思考、挂了之后备谁。规划者一个标签，执行者另一个标签。标签对不上，就走默认配置——所以漏配的感觉是「突然变笨 / 变慢」，其实是掉进了默认项。</li>
+    <li><strong>规划者和执行者本来就该能不同。</strong>规划者侧重看懂意图、拆不拆、派给谁；执行者侧重工具调用和改文件。配置上就是两套标签。执行者内部还能再分：默认动手、先探代码、调研、写文档，各自可以再挂一颗更合适的脑。</li>
+    <li><strong>连「翻哪份知识」也有自己的脑。</strong>从一堆「使用时机」里勾选，走的是检索场景，不是规划者那颗。换规划者模型，不会自动把检索也换掉，除非配置里写了。</li>
+    <li><strong>任务模式决定挂哪套标签。</strong>例如默认分流、复杂办事、IDE 里改代码、纯问答、写文档、Code Review，规划者和执行者的标签组合不一样。产品形态变的是「问答还是办事」，底下跟着换脑。</li>
+    <li><strong>门后面。</strong>统一网关挡住多家后端：国内云、海外、公司内部通道等。请求先过安全，再走主模型；失败按规则重试、再走备用名单。流式结果带用量和耗时，方便看慢在哪，不必把供应商名字讲给用户。</li>
+    <li><strong>还可以按人分流。</strong>配置允许把一部分人打到另一套场景（灰度、特殊账号）。分享时不必展开，但要知道：现场两个人手感不同，不一定是 bug。</li>
+  </ul>
+
+  <h3>对体验的影响</h3>
+  <ul>
+    <li><strong>对外不要讲死模型名。</strong>今天挂的和明天挂的可以换；规划者和执行者可以不同。讲成「我们用某某」会在换配的第二天被打脸。</li>
+    <li><strong>换模型是配置，不是改产品。</strong>要让办事更稳、问答更便宜，改场景挂载即可，不必改会话、空间、技能这些对象。</li>
+    <li><strong>规划者 / 执行者分挂，是产品决策。</strong>一颗脑包打天下，会出现「问答太重」或「改代码太飘」。分挂之后，用户感到的是两种节奏，要在分享里解释清楚：不是两个产品，是同一套办事里的两个角色。</li>
+    <li><strong>漏配等于掉进默认。</strong>新场景如果没挂标签，会用默认模型。评测和线上手感对不上，先对场景标签，再对模型名。</li>
+    <li><strong>备用链是体验保险。</strong>主路挂了还能继续办，但备用模型风格可能不同。用户说「这一次答法好奇怪」，先看是不是走到了备用。</li>
+  </ul>
+
+  <h3>分享口播</h3>
+  <p>「别问 Aime 用的是哪一个模型。产品不绑死名字。规划者想清楚、执行者动手，两颗脑可以不一样；连翻知识都可以再挂一颗。我们卖的是办事，不是某一家的商标。配置后台按场景挂模型，换脑不用换产品。」</p>
+</article>
+  </div>
+
+  <script>
+    const pb = document.getElementById("pb");
+    const pt = document.getElementById("pt");
+    const pg = document.getElementById("pg");
+    const home = document.getElementById("d-home");
+
+    function headingKind(text) {
+      if (/怎么说/.test(text)) return "says";
+      if (/配额/.test(text)) return "quota";
+      if (/边界|不能做/.test(text)) return "bounds";
+      return "cards";
+    }
+
+    function splitItem(li) {
+      if (li.querySelector(":scope > .k")) return;
+      const strong = li.firstElementChild;
+      if (!strong || strong.tagName !== "STRONG") return;
+      const k = document.createElement("div");
+      k.className = "k";
+      k.append(...strong.childNodes);
+      k.textContent = k.textContent.replace(/[：:]\s*$/, "");
+      const d = document.createElement("div");
+      d.className = "d";
+      let node = strong.nextSibling;
+      while (node) {
+        const next = node.nextSibling;
+        d.appendChild(node);
+        node = next;
+      }
+      strong.replaceWith(k);
+      if (d.firstChild && d.firstChild.nodeType === 3) {
+        d.firstChild.textContent = d.firstChild.textContent.replace(/^[：:\s]+/, "");
+      }
+      if (d.textContent.trim()) li.appendChild(d);
+    }
+
+    function enhance(root) {
+      if (root.querySelector(".empty") || root.querySelector(".toc")) return;
+
+      root.querySelectorAll("ul, ol").forEach((list) => {
+        const prev = list.previousElementSibling;
+        const label = prev ? prev.textContent : "";
+        const kind = list.parentElement === root || (prev && /^H[34]$/.test(prev.tagName))
+          ? headingKind(label)
+          : "cards";
+        if (prev && /^H[34]$/.test(prev.tagName)) list.classList.add(kind);
+        else if (!list.className) list.classList.add("cards");
+        if (list.classList.contains("cards") || list.classList.contains("quota")) {
+          list.querySelectorAll(":scope > li").forEach(splitItem);
+        }
+      });
+
+      root.querySelectorAll("h3").forEach((h) => {
+        if (!/口播/.test(h.textContent)) return;
+        const box = document.createElement("aside");
+        box.className = "talk";
+        let n = h.nextElementSibling;
+        while (n && n.tagName === "P") {
+          const next = n.nextElementSibling;
+          box.appendChild(n);
+          n = next;
+        }
+        if (box.childNodes.length) h.after(box);
+      });
+
+      const heads = [...root.querySelectorAll("h3")];
+      if (heads.length >= 3) {
+        const nav = document.createElement("nav");
+        nav.className = "toc";
+        nav.setAttribute("aria-label", "本节目录");
+        heads.forEach((h) => {
+          const a = document.createElement("button");
+          a.type = "button";
+          a.textContent = h.textContent.replace(/^\d+\.\s*/, "").slice(0, 14);
+          a.addEventListener("click", () => h.scrollIntoView({ behavior: "smooth", block: "start" }));
+          nav.appendChild(a);
+        });
+        root.prepend(nav);
+      }
+    }
+
+    function show(id) {
+      const art = document.getElementById("d-" + id) || home;
+      pt.textContent = art.dataset.title || "";
+      pg.textContent = art.dataset.tag || "";
+      pb.innerHTML = art.innerHTML;
+      pb.scrollTop = 0;
+      enhance(pb);
+      document.querySelectorAll(".node.is-on, .band-h.is-on").forEach((el) => el.classList.remove("is-on"));
+      document.querySelectorAll('[data-id="' + id + '"]').forEach((el) => el.classList.add("is-on"));
+      history.replaceState(null, "", id === "home" ? location.pathname : "#" + id);
+    }
+
+    document.querySelectorAll("[data-id]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const id = el.getAttribute("data-id");
+        if (el.classList.contains("is-on")) show("home");
+        else show(id);
+      });
+    });
+    document.getElementById("px").addEventListener("click", () => show("home"));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") show("home");
+    });
+
+    const hash = decodeURIComponent(location.hash.replace("#", ""));
+    if (hash && document.getElementById("d-" + hash)) show(hash);
+  </script>
+</body>
+</html>
