@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>面试作战手册 · 米哈游 发行 AI 产品经理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B1E1B;
+    --body:#33362F;
+    --muted:#6E7266;
+    --pine:#2B5745;
+    --pine-strong:#1F4536;
+    --pine-soft:#EBF1EA;
+    --rust:#A4432E;
+    --rust-soft:#F7ECE7;
+    --paper:#FDFCF9;
+    --rule:#DCD8CB;
+    --backdrop:#E8E5DA;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  body{
+    background:var(--backdrop);
+    font-family:'IBM Plex Sans',-apple-system,'Helvetica Neue',Arial,sans-serif;
+    color:var(--body);
+    display:flex;
+    justify-content:center;
+    padding:28px 16px;
+  }
+  .page{
+    width:210mm;
+    max-width:100%;
+    background:var(--paper);
+    box-shadow:0 1px 3px rgba(27,30,27,.08), 0 12px 32px rgba(27,30,27,.12);
+    padding:12mm 14mm 14mm;
+  }
+
+  /* ---------- header ---------- */
+  .head{
+    border-bottom:1.5px solid var(--ink);
+    padding-bottom:12px;
+  }
+  .head .eyebrow{margin-bottom:4px;}
+  .head h1{
+    margin:0 0 6px;
+    font-family:'IBM Plex Serif',Georgia,serif;
+    font-weight:700;
+    font-size:26px;
+    color:var(--ink);
+    letter-spacing:.01em;
+  }
+  .head .sub{
+    margin:0;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+  .head .sub b{color:var(--pine-strong);font-weight:600;}
+
+  /* ---------- score strip ---------- */
+  .scoreline{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:12px;
+  }
+  .scoreline .cell{
+    flex:1 1 120px;
+    border:1px solid var(--rule);
+    border-radius:3px;
+    padding:7px 10px;
+    background:#fff;
+  }
+  .scoreline .cell .k{
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:9.5px;
+    color:var(--muted);
+    display:block;
+    margin-bottom:2px;
+  }
+  .scoreline .cell .v{
+    font-family:'IBM Plex Serif',Georgia,serif;
+    font-size:17px;
+    font-weight:600;
+    color:var(--pine-strong);
+  }
+  .scoreline .cell .v small{font-size:10.5px;color:var(--muted);font-weight:400;margin-left:3px;font-family:'IBM Plex Sans',sans-serif;}
+
+  /* ---------- eyebrow ---------- */
+  .eyebrow{
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:9.5px;
+    color:var(--pine);
+    letter-spacing:.02em;
+    display:block;
+  }
+
+  /* ---------- lifeline band ---------- */
+  .lifeline{
+    background:var(--pine-soft);
+    border-left:3px solid var(--pine);
+    border-radius:3px;
+    padding:11px 16px 12px;
+    margin:14px 0 4px;
+    break-inside:avoid;
+  }
+  .lifeline h2{
+    margin:0 0 8px;
+    font-family:'IBM Plex Serif',Georgia,serif;
+    font-weight:600;
+    font-size:14.5px;
+    color:var(--ink);
+  }
+  .lifeline ol{
+    margin:0;
+    padding-left:20px;
+  }
+  .lifeline li{
+    font-size:11.6px;
+    line-height:1.5;
+    margin-bottom:4px;
+    color:var(--body);
+  }
+  .lifeline li:last-child{margin-bottom:0;}
+  .lifeline li b{color:var(--pine-strong);font-weight:600;}
+  .lifeline li::marker{
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:10px;
+    color:var(--pine);
+    font-weight:500;
+  }
+
+  /* ---------- rail sections ---------- */
+  .rail-section{
+    display:grid;
+    grid-template-columns:88px 1fr;
+    gap:12px;
+    margin-top:20px;
+  }
+  .rail-label{position:relative;}
+  .rail-label .sticky{position:sticky;top:16px;}
+  .rail-label h2{
+    margin:2px 0 0;
+    font-family:'IBM Plex Serif',Georgia,serif;
+    font-weight:600;
+    font-size:17px;
+    color:var(--ink);
+    line-height:1.25;
+  }
+  .rail-label .hint{
+    display:block;
+    margin-top:4px;
+    font-size:10px;
+    color:var(--muted);
+    line-height:1.45;
+  }
+
+  /* ---------- round card ---------- */
+  .round{
+    border:1px solid var(--rule);
+    border-radius:3px;
+    background:#fff;
+    padding:12px 15px 13px;
+    margin-bottom:12px;
+    break-inside:avoid;
+  }
+  .round:last-child{margin-bottom:0;}
+  .round-head{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:8px;
+    padding-bottom:7px;
+    border-bottom:1px solid var(--rule);
+  }
+  .round-head .name{
+    font-family:'IBM Plex Serif',Georgia,serif;
+    font-size:14.5px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .round-head .score{
+    margin-left:auto;
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:10.5px;
+    color:var(--pine-strong);
+    background:var(--pine-soft);
+    border-radius:2px;
+    padding:2px 7px;
+    white-space:nowrap;
+  }
+
+  .q{
+    font-size:11.6px;
+    line-height:1.5;
+    color:var(--ink);
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:3px;
+    padding:8px 11px;
+    margin:0 0 9px;
+  }
+  .q .tag{color:var(--muted);}
+
+  .tag{
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:9.5px;
+    letter-spacing:.02em;
+    margin-right:5px;
+  }
+  .tag.pit{color:var(--rust);}
+  .tag.ans{color:var(--pine);}
+  .tag.keep{color:var(--pine);}
+
+  .block-label{
+    display:block;
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:9.5px;
+    letter-spacing:.02em;
+    margin:9px 0 4px;
+  }
+  .block-label.pit{color:var(--rust);}
+  .block-label.ans{color:var(--pine);}
+  .block-label.keep{color:var(--pine);}
+
+  .pits{margin:0;padding-left:15px;}
+  .pits li{
+    font-size:11.3px;
+    line-height:1.48;
+    margin-bottom:3px;
+  }
+  .pits li::marker{color:var(--rust);content:"▪ ";}
+  .pits li b{color:var(--rust);font-weight:600;}
+
+  .keeps{margin:0;padding-left:15px;}
+  .keeps li{
+    font-size:11.3px;
+    line-height:1.48;
+    margin-bottom:3px;
+  }
+  .keeps li::marker{color:var(--pine);content:"▪ ";}
+  .keeps li b{color:var(--pine-strong);font-weight:600;}
+
+  .demo{
+    border-left:3px solid var(--pine);
+    background:var(--pine-soft);
+    border-radius:0 3px 3px 0;
+    padding:8px 12px;
+    margin:6px 0 2px;
+    font-size:11.3px;
+    line-height:1.55;
+    color:var(--body);
+  }
+  .demo .who{
+    display:block;
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:9px;
+    color:var(--pine);
+    margin-bottom:3px;
+  }
+  .demo b{color:var(--pine-strong);font-weight:600;}
+
+  .note{
+    font-size:10.8px;
+    line-height:1.5;
+    color:var(--muted);
+    margin:7px 0 0;
+  }
+  .note b{color:var(--rust);font-weight:600;}
+
+  /* ---------- cheat tables ---------- */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:8px 0 4px;
+    background:#fff;
+  }
+  th,td{
+    border:1px solid var(--rule);
+    padding:6px 9px;
+    font-size:10.8px;
+    line-height:1.45;
+    text-align:left;
+    vertical-align:top;
+  }
+  th{
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:9.5px;
+    font-weight:500;
+    color:var(--pine);
+    background:var(--pine-soft);
+    white-space:nowrap;
+  }
+  td b{color:var(--pine-strong);font-weight:600;}
+  td .m{color:var(--rust);font-weight:600;}
+
+  .prose{
+    font-size:11.6px;
+    line-height:1.55;
+    margin:6px 0;
+  }
+  .prose b{color:var(--pine-strong);font-weight:600;}
+
+  /* ---------- checklist ---------- */
+  .check{margin:4px 0 0;padding-left:0;list-style:none;}
+  .check li{
+    position:relative;
+    padding-left:22px;
+    font-size:11.6px;
+    line-height:1.5;
+    margin-bottom:6px;
+  }
+  .check li::before{
+    content:"";
+    position:absolute;
+    left:0;top:2px;
+    width:11px;height:11px;
+    border:1.4px solid var(--pine);
+    border-radius:2px;
+    background:#fff;
+  }
+  .check li b{color:var(--pine-strong);font-weight:600;}
+
+  /* ---------- term chips ---------- */
+  .terms{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .terms .chip{
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:10.5px;
+    border:1px solid var(--rule);
+    border-radius:2px;
+    background:#fff;
+    padding:4px 9px;
+    color:var(--ink);
+  }
+  .terms .chip s{color:var(--rust);text-decoration-color:var(--rust);margin-right:6px;}
+  .terms .chip b{color:var(--pine-strong);font-weight:500;}
+
+  /* ---------- fill-in marks ---------- */
+  .fill{
+    background:var(--rust-soft);
+    color:var(--rust);
+    font-weight:600;
+    border-radius:2px;
+    padding:0 4px;
+  }
+
+  /* ---------- footer ---------- */
+  .coda{
+    margin-top:20px;
+    border-top:1.5px solid var(--ink);
+    padding-top:10px;
+    font-size:10.8px;
+    line-height:1.6;
+    color:var(--muted);
+  }
+  .coda b{color:var(--rust);font-weight:600;}
+
+  /* ---------- print ---------- */
+  @page{size:A4;margin:10mm;}
+  @media print{
+    body{background:var(--paper);padding:0;display:block;}
+    .page{box-shadow:none;width:auto;padding:2mm 0;}
+    .rail-section{break-inside:auto;}
+    .round,.lifeline,table{break-inside:avoid;}
+    .rail-label .sticky{position:static;}
+  }
+
+  /* ---------- narrow screens ---------- */
+  @media screen and (max-width:210mm){
+    body{padding:0;}
+    .page{width:100%;padding:7mm 5mm;box-shadow:none;}
+    .rail-section{grid-template-columns:1fr;gap:6px;}
+    .rail-label .sticky{position:static;}
+    .rail-label{display:flex;align-items:baseline;gap:8px;}
+    .rail-label .hint{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="head">
+    <span class="eyebrow">// 2026.07.08 深夜复盘 → 明日实战</span>
+    <h1>面试作战手册</h1>
+    <p class="sub"><b>米哈游 · 发行 AI 产品经理</b> · 模拟面试四轮复盘 + 发行速成小抄 · 面试官人设：发行业务线负责人，压力面风格，必戳「行业经验缺口」</p>
+    <div class="scoreline">
+      <div class="cell"><span class="k">R1 动机与自我介绍</span><span class="v">5.5<small>/10 雷区最多</small></span></div>
+      <div class="cell"><span class="k">R2 项目深挖 Flux</span><span class="v">7.0<small>/10 追问后回升</small></span></div>
+      <div class="cell"><span class="k">R3 Agent 工程化</span><span class="v">7.0<small>/10 主场有硬伤</small></span></div>
+      <div class="cell"><span class="k">R4 发行 Case</span><span class="v">6.5<small>/10 新学现卖</small></span></div>
+    </div>
+  </header>
+
+  <!-- ================= 救命绳 ================= -->
+  <section class="lifeline">
+    <h2><span class="eyebrow">// </span>五句救命绳 —— 进场前最后看一眼</h2>
+    <ol>
+      <li>动机锚在<b>发行场景本身的价值</b>——多语言多市场、内容产能、效果全可量化。<b>基模两个字全场禁言。</b></li>
+      <li>被质疑没有发行经验，用<b>「同构问题」</b>重构：我在另一个场景完整验证过同一类问题的解法。</li>
+      <li>Case 题永远<b>先拆业务链路、后讲 AI 能力</b>——research / 分析 / 生成是手段，链路提效才是目的。</li>
+      <li>被捅指标时<b>让步只让边界、不让价值</b>：先立区别顶回去，再认边界，最后给时间表。</li>
+      <li>复合问题<b>先记关键词，答一个勾一个</b>——今晚三次漏答子问题，这是你压力下的系统性漏洞。</li>
+    </ol>
+  </section>
+
+  <!-- ================= 轮次复盘 ================= -->
+  <section class="rail-section">
+    <div class="rail-label"><div class="sticky">
+      <span class="eyebrow">// 01</span>
+      <h2>轮次<br>复盘</h2>
+      <span class="hint">题 → 雷 → 示范答法，每张卡就是明天的一道必考题</span>
+    </div></div>
+    <div>
+
+      <!-- R1 -->
+      <div class="round">
+        <div class="round-head">
+          <span class="name">R1 · 自我介绍 + 为什么来做发行 AI</span>
+          <span class="score">5.5 / 10</span>
+        </div>
+        <p class="q"><span class="tag">【题】</span>两三分钟总结你三年 Agent 经验的主线；为什么放弃字节的好绩效来做游戏发行 AI？你对「发行 AI 化」的理解是什么？</p>
+        <span class="block-label keep">【保留】做对的部分</span>
+        <ul class="keeps">
+          <li><b>「24 单点排障 → 25 通用 Agent → 26 团队协作」</b>的时间线，且每次形态切换都锚定在模型能力变化上——这是你自我介绍最大的资产，原样保留。</li>
+        </ul>
+        <span class="block-label pit">【雷】踩过的坑</span>
+        <ul class="pits">
+          <li><b>动机答成「想离基模近」</b>——面试官听到的是：真正想去的不是这儿，进来就是跳板。追问「三年碰不到基模还来吗」两轮回避，比答错更减分。</li>
+          <li><b>泄露前司战略判断</b>（「内场会被豆包吞并」）——今天能这么聊字节，明天就能这么聊米哈游。离职原因说到「内部能力收敛整合、个人空间收窄」为止。</li>
+          <li><b>漏答半个问题</b>（发行 AI 化的理解），且把发行错误类比成研发流水线，还以「我不太确定对不对」收尾——把展示题答成了求助题。</li>
+          <li><b>「想多了解不同行业」「试一试」</b>——行业体验卡心态，这三个字不许再出现。</li>
+        </ul>
+        <span class="block-label ans">【示范】动机 · 30 秒</span>
+        <div class="demo">
+          「我看这个 JD 时的判断是：发行可能是游戏行业里 AI 落地<b>价值密度最高</b>的场景——多语言多市场、内容产能需求巨大、流程重复度高，而且<b>效果全部可量化</b>。这和我三年做的事本质相同：把复杂业务拆成 Agent 可接管的环节，建好 Harness 保证生产环境真实可用。我在研发场景完整验证过一遍这套方法论，想在一个业务价值更外显的场景再做一遍。行业经验我坦承是缺口，但我已经开始补——（HoYoLAB 的具体观察放这里）。」
+        </div>
+        <span class="block-label ans">【示范】发行 AI 化的理解 · 90 秒 · 总—分—总</span>
+        <div class="demo">
+          <span class="who">开场定框架 · 10s</span>
+          「发行 AI 化不是做一个 AI 工具，而是沿着<b>本地化、买量、社区、客服</b>这几条业务链路，在版本循环里逐条做智能化改造。」
+          <span class="who" style="margin-top:6px;">具象化：一个版本周期 · 40s</span>
+          「拿星铁一个新版本的六周讲：版本文本和 PV 要在死线前翻成十几种语言、过各地区文化合规；买量团队要给各市场备几十上百条素材，投几天就衰退；上线当天 HoYoLAB、Discord、X 的多语言反馈瞬间涌入，角色争议几小时就能发酵；客服工单同步冲峰。<b>这套流程每六周完整碾过来一遍。</b>」
+          <span class="who" style="margin-top:6px;">落到自己 · 30s</span>
+          「这些环节全是<b>高频、有 SOP、依赖专家经验</b>的——正是我判断『值不值得 Agent 化』的标准。舆情客服和我做的智能排障是<b>同构问题</b>：事件流进来、按专家 SOP 分诊、处理不了升级给人。排障我们做到每周自动处理两万次、Oncall 降 40%。」
+          <span class="who" style="margin-top:6px;">收口 · 10s</span>
+          「打法是：先拆链路找高频有 SOP 的环节，优先做有真值、可评测的，再用评测和 Harness 保证生产可用——不是做个 demo 就叫落地。」
+        </div>
+      </div>
+
+      <!-- R2 -->
+      <div class="round">
+        <div class="round-head">
+          <span class="name">R2 · 项目深挖（Flux）+ 虚荣指标接刀</span>
+          <span class="score">7.0 / 10</span>
+        </div>
+        <p class="q"><span class="tag">【题】</span>挑一个项目讲透：背景痛点 / 切入点 / 方案 / <b>你个人的关键决策</b> / <b>数字怎么核</b>。追问：周活口径？交付效率量过吗？为什么是你们团队做？你的周活和你批评的 token 消耗量有什么本质区别？</p>
+        <span class="block-label keep">【保留】做对的部分</span>
+        <ul class="keeps">
+          <li><b>两个决策故事是真货</b>：①协作助理 vs 简单共享区——「没有无所谓、做不好会被喷」的期望管理；②自研 Agent vs 编排 SOTA——起步速度、迁移成本、能力不可能碾压。明天必讲。</li>
+          <li>问题框架「个人提效 ≠ 组织提效，卡点在研发的上下游」——立项洞察有差异化。</li>
+        </ul>
+        <span class="block-label pit">【雷】踩过的坑</span>
+        <ul class="pits">
+          <li>四分钟全程「我们」，<b>「我」消失了</b>——「个人决策」和「数字」两个显式子问题被漏掉（第二次漏答）。</li>
+          <li><b>数字没有锚</b>：周活口径答成「每天」；「留存 60–70%」没说是哪种留存、什么时间窗。铁律：<b>报数字必带口径 + 分母 + 时间窗</b>。</li>
+          <li><b>亲手缴械</b>：「周活和 token 消耗没有本质区别，可能就是虚荣指标」——把简历上最大的数字让掉了。坦诚 = 承认边界，不是缴械价值。</li>
+          <li>「据我了解只有我们一家」——字节内部 TRAE、Coze、豆包侧工具团队都在桌上，这个答案显得不了解自家公司。</li>
+          <li>决策故事缺「验证结尾」：分歧 → 判断依据 → 拍板 → <b>代价 / 被验证</b>，最后一节今晚补上。</li>
+        </ul>
+        <span class="block-label ans">【示范】虚荣指标接刀 · 40 秒</span>
+        <div class="demo">
+          「有本质区别。<b>Token 消耗是成本指标</b>，可以被摊派和浪费；<b>周活加留存是行为指标</b>，用户是用脚投票回来的——它还不能证明交付效率提升，但它是那个北极星的<b>领先指标和必要条件</b>。我们的路径是有意设计的：先用统一调度 SOTA Agent 这个刚需把人请进来，目前 X% 的活跃用户已渗透到共享 Context 功能——木马策略在生效。北极星那层，正在和 X 业务线共建对照，目标 Q3 拿到需求流转时长的前后对比。周活是脚手架，不是终点，而且我对『什么时候必须拿出终点数据』有明确时间表。」
+        </div>
+        <span class="block-label ans">【示范】为什么是你们 · 生态位答法</span>
+        <div class="demo">
+          「相邻的玩家有：TRAE 解决个人编码、Coze 解决 Agent 搭建，都是个人 / 单 Agent 视角；我们卡位的是<b>团队协作层 + 内场研发基建的深度集成</b>——这是平台团队没有的资产。」承认竞争、讲清生态位，比「没有竞争」可信一百倍。
+        </div>
+      </div>
+
+      <!-- R3 -->
+      <div class="round">
+        <div class="round-head">
+          <span class="name">R3 · Agent 工程化（bad case 闭环 / 评测 / 发布）</span>
+          <span class="score">7.0 / 10</span>
+        </div>
+        <p class="q"><span class="tag">【题】</span>bad case 从发现到修复上线且不弄坏别的 case，闭环怎么转？追问：可用率 90% 谁打分？Agent 不确定性下 92%→89% 是真回归还是噪声？模型升级怎么发布？</p>
+        <span class="block-label keep">【保留】做对的部分（主场证据链）</span>
+        <ul class="keeps">
+          <li>bad case 双渠道（内部 dogfooding + 反馈群）、<b>trace 分析工具</b>、用户不回复时<b>上线代码反向 diff</b>、修复分诊（工程 vs 效果 / 通用知识 vs 仓库级 skill）。</li>
+          <li><b>双评测集防过拟合</b>：研发自维护 + 评测团队独立保留集，原则上不许对保留集调优。</li>
+          <li>打分三层：<b>单测通过（客观真值）+ solution 要点 LLM 打分 + 人工抽检</b>。</li>
+          <li>发布：内部评测无明显劣化 → 灰度 AB → 线上信号；主动承认点赞点踩稀疏，加分。</li>
+        </ul>
+        <span class="block-label pit">【雷】踩过的坑</span>
+        <ul class="pits">
+          <li><b>硬伤：「跑三轮取最好」= pass@3</b>，衡量能力上限；用户体验的是 pass@1——报出的 90% 系统性高估线上质量，且完全回答不了「真回归还是噪声」。</li>
+          <li>LLM judge <b>没标定</b>——「裁判自己的准确率」被问了没接。</li>
+          <li>模型升级缺两块：<b>case 级翻转分析</b>（总分持平但过的 case 换了一批）+ <b>行为指标</b>（采纳 / merge 率、重试率、中途接管率，密度远高于点赞点踩）。</li>
+        </ul>
+        <span class="block-label ans">【示范】噪声与回归的正确答法</span>
+        <div class="demo">
+          「报告指标用<b>多轮平均或通过率</b>，best-of 只看能力上限。回归判定不看总分看 <b>case 翻转</b>：一个 case 三轮里两轮以上从过变不过，才计为疑似回归，再人工看 trace 确认。评测集小，所以不迷信总分的小数点，看的是哪些 case 翻了、为什么翻。」<br>
+          若实际就是取最好，主动降级：「严格说我们报的是 pass@3，是当时评测成本约束下的<b>有意识取舍</b>；回归判断主要靠 case 级翻转而不是总分。」——瑕疵包装成已知取舍，比被追问出来体面十倍。
+        </div>
+        <p class="note">今晚去查：judge 的<b>人机一致率</b>有没有数——这一个数字能把「我们有 LLM judge」升级为「我们标定过 judge」。</p>
+      </div>
+
+      <!-- R4 -->
+      <div class="round">
+        <div class="round-head">
+          <span class="name">R4 · 发行 Case（星铁本地化链路 AI 化改造）</span>
+          <span class="score">6.5 / 10</span>
+        </div>
+        <p class="q"><span class="tag">【题】</span>6 周一版、几十万字翻成十几种语言，外包 + 人工质检，成本高、术语不一致、偶发文化合规事故。怎么拆？先做哪块？怎么评测？半年后拿什么数字证明值得继续投入？</p>
+        <span class="block-label keep">【保留】做对的部分</span>
+        <ul class="keeps">
+          <li>按内容类型拆 + 看清依赖：<b>游戏内文本的译文是公告 / 物料翻译的上游 Context</b>。</li>
+          <li><b>历史版本翻译当评测集</b>——自带 ground truth，冷启动成本极低。今晚最好的点子之一。</li>
+          <li>合规前置 Research + <b>人工校验清单再注入</b>（「召回率无法保证所以必须 human in the loop」）。</li>
+          <li>产报告、主动暴露「哪些内容我没把握 + 路径」——不确定性外显。</li>
+        </ul>
+        <span class="block-label pit">【雷】踩过的坑</span>
+        <ul class="pits">
+          <li><b>合规只做了生成前，没做生成后</b>。注入 Context 是约束不是保证，需要纵深防御：生成前注入 + <b>生成后独立合规检查器门禁</b> + 人工终审签字。且合规大头常在<b>视觉物料</b>（立绘、广告图），纯文本管线覆盖不到；禁忌清单应是<b>分地区、版本化、与法务共建的长期知识库</b>，不是每版临时查一遍。</li>
+          <li><b>「Agent 是自由的，不是流水线」</b>——业务负责人听到的词是「不可控」。发行要过法务、要有人签字担责：<b>「多 Agent 对抗 Review 到没问题就给用户」的流程里，合规事故算谁的？</b>没有具名签核节点，这套东西在发行体系一天都跑不起来。</li>
+          <li><b>把自己的 Flux 经验忘了</b>：自称「极致 Agent 用户，人只是驱动角色」——但发行运营和翻译外包不是 AI 原生人群。Flux 的 adoption 智慧原样搬过来：先当质检副驾 → 高置信段自动过 → 逐步放权。</li>
+          <li>第三次漏答显式子问题（「要不要重排优先级」没有明确重排）。</li>
+        </ul>
+        <span class="block-label ans">【示范】组织与责任的答法（JD 第 3 条要的东西）</span>
+        <div class="demo">
+          「Agent 的灵活性是<b>实现手段</b>，交付给业务的必须是<b>有 SLA、有审计日志、有责任节点的流程</b>：外包从『翻译者』转型为『审校者』；质检同学转型为『术语库和合规库的维护者 + 终审签字人』；几十万字按<b>置信度分流</b>——高置信直接过、低置信人工复核、合规敏感段强制签核。人没有被替掉，是被移到了杠杆更高的位置。」
+        </div>
+        <span class="block-label ans">【示范】半年证明 · 三族指标（每个利益方一族）</span>
+        <div class="demo">
+          <b>效率</b>：一个版本本地化的端到端周期、单字成本、人工质检工时；<b>质量</b>：术语一致性错误率、返工率；<b>风险</b>：合规事故数、翻译类玩家舆情量。周期对比是好主意，但单独一个数扛不住追问。
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= 完整逐字稿 ================= -->
+  <section class="rail-section">
+    <div class="rail-label"><div class="sticky">
+      <span class="eyebrow">// 02</span>
+      <h2>完整<br>逐字稿</h2>
+      <span class="hint">四道主线大题的整合版全文——你答对的部分 + 纠错内容，出声练；<span style="color:var(--rust);">红标</span>处今晚填真数</span>
+    </div></div>
+    <div>
+
+      <!-- 稿1 -->
+      <div class="round">
+        <div class="round-head">
+          <span class="name">稿一 · 自我介绍（约 2 分半，接动机 30 秒版）</span>
+          <span class="score">开场必考</span>
+        </div>
+        <div class="demo">
+          <span class="who">主线一句话 · 10s</span>
+          「我这三年的主线，是围绕『如何让 Agent 真正服务好一个专业群体』做了三代产品，每一代的形态都跟着模型能力走。」
+          <span class="who" style="margin-top:6px;">第一代 · 30s</span>
+          「24 年模型还不具备端到端解决问题的能力，所以我们选了一个高频且痛的单点场景——研发 Oncall 排障，做最小闭环。我主导设计了基于 SOP 技能库的 Multi-Agent 架构，把专家的排障经验沉淀成可复用的技能。这个产品做到了<b>每周自动化处理超 2 万次故障，Oncall 下降超 40%，MTTR 下降超 20%</b>。」
+          <span class="who" style="margin-top:6px;">第二代 · 30s</span>
+          「25 年模型的长任务执行能力大幅提升，代码达到生产级水准，我们从垂直单点切到通用 Agent——Aime，服务字节全体研发。我负责的重点是效率层和 Harness：任务拆解、上下文构建、打通云环境测试验证，让 Agent 从『生成代码』升级为『可交付』。它做到了<b>周活 7.5 万、渗透 90% 研发群体</b>。」
+          <span class="who" style="margin-top:6px;">第三代 · 40s</span>
+          「26 年，用 Agent 写代码在字节已经是默认方式，但我们发现一个新问题：<b>个人提效没有转化成组织提效</b>——卡点转移到了研发的上下游。所以我发起了 Flux，一个面向团队协作的多 Agent 平台，用统一 Context 串起产品、设计、研发、测试的整条链路，上线后<b>周活迅速破万、周留存〔今晚填口径和数〕</b>。总结起来：24 年我在解决单点问题，25 年在解决个人效率，26 年在解决组织协作——底层逻辑始终是围绕 Context 和 Harness，让 AI 在生产环境里产出真实业务效果。」
+          <span class="who" style="margin-top:6px;">桥接动机 · 5s（然后接 R1 卡里的动机 30 秒版）</span>
+          「这也是我看发行 AI 这个方向的原因——」
+        </div>
+      </div>
+
+      <!-- 稿2 -->
+      <div class="round">
+        <div class="round-head">
+          <span class="name">稿二 · Flux 项目深挖（约 3 分钟）</span>
+          <span class="score">权重最高</span>
+        </div>
+        <div class="demo">
+          <span class="who">背景与洞察 · 40s</span>
+          「立项背景是一个反直觉的观察：26 年初，字节内部几乎人人在用 Agent 写代码，公司层面也在追 token 消耗量这类指标——但 token 消耗并没有反馈到真实业务价值上，需求交付效率、人均交付需求数都没有明显变化。我们跟多个业务团队聊下来，发现<b>卡点已经不在研发这里了，在研发的上下游</b>：上游产品、设计这些角色用不好 AI 工具，需求流动速度跟不上开发速度，出现了木桶效应；下游的测试验证 Harness 没建起来——Agent 代码写得飞快，但接口测试、GUI 测试、造数据这些环节全是断点。」
+          <span class="who" style="margin-top:6px;">方案 · 40s</span>
+          「所以方案分两端。上游：给产品设计角色提供 AI 工具和实践，同时搭了一个协作空间——本质是一个共同产物的存放区，让上游的产出直接成为下游 Agent 的 Context。下游是苦活：围绕现有研发基建把测试 Harness 建起来——代码变更分析定位待测接口、结合业务知识智能造数做 Mock、用 Computer Use 跑 GUI 测试。」
+          <span class="who" style="margin-top:6px;">我的两个关键决策 · 60s</span>
+          「讲两个我拍板的决策。<b>第一个</b>：团队里有人想做『协作助理』——主动催办、帮你解决问题，听起来性感。我否了，因为这类能力属于『没有无所谓、做不好必被喷』——预期管理上是负资产。我定的原则是只做足够简单、足够有把握的事，先建立『这个产品很专业』的信任。<b>验证：〔今晚填：上线后共享区使用率 / 用户定性反馈〕</b>。<b>第二个</b>：要不要自研一个完整 Agent。我选了不自研，做 SOTA Agent 的统一编排——理由三条：自研起步太慢；用户已有习惯的 Agent，迁移成本真实存在；能力上不可能碾压 Codex 和 Claude Code。<b>验证：〔今晚填：接入后调度量 / 用户增长数据〕</b>。」
+          <span class="who" style="margin-top:6px;">结果与坦诚边界 · 40s</span>
+          「结果：上线后周活迅速破万——口径是<b>〔今晚填：完成过一次 Agent 任务的去重用户 / 周〕</b>，周留存〔填口径〕在 60–70%。我很清楚这还是领先指标：留存证明用户持续感知到价值，但北极星是需求交付效率。我们的路径是有意设计的木马策略：先用统一调度 SOTA Agent 这个刚需把人请进来，目前<b>〔填〕%</b> 的活跃用户已经渗透到共享 Context 功能。北极星那层，正在和〔填〕业务线共建对照组，目标 Q3 拿到需求平均流转时长的前后对比。」
+          <span class="who" style="margin-top:6px;">为什么是我们 · 15s（被问才说）</span>
+          「内部相邻玩家有：TRAE 解决个人编码、Coze 解决 Agent 搭建，都是个人 / 单 Agent 视角；我们卡位的是团队协作层加内场研发基建的深度集成，这是平台团队没有的资产。」
+        </div>
+      </div>
+
+      <!-- 稿3 -->
+      <div class="round">
+        <div class="round-head">
+          <span class="name">稿三 · Bad Case 闭环与评测体系（约 2 分半）</span>
+          <span class="score">主场·打出统治力</span>
+        </div>
+        <div class="demo">
+          <span class="who">先报结构 · 5s</span>
+          「这个闭环分五步：采集、归因、修复、回归、发布。」
+          <span class="who" style="margin-top:6px;">采集与归因 · 40s</span>
+          「采集双渠道：自己团队 dogfooding + 大规模用户反馈群。归因上我们有 Agent rollout 的 trace 分析工具，能看到整个 loop 里调了哪些工具、读了哪些文件、耗时分布。执行时间长的，先定位卡点，一般是工程或 Harness 问题；效果差的，先找用户确认真实的改动逻辑和缺失知识；<b>用户不回复的，我们拿他最终上线的代码和 Agent 生成的代码做 diff，再让 Agent 反向分析差在哪</b>——这招把归因的死角堵上了。」
+          <span class="who" style="margin-top:6px;">修复分诊 · 25s</span>
+          「修复按类型分诊：工程问题走工程优化；知识欠缺的，通用知识进平台知识层，业务独立知识用标准化方式放进仓库——skill 和 knowledge 文档，验证有效后推给用户。」
+          <span class="who" style="margin-top:6px;">回归与防过拟合 · 50s</span>
+          「回归靠双评测集：研发自己维护一份，目标可用率 90% 以上；评测团队独立维护一份保留集，<b>原则上禁止针对保留集调优</b>，防过拟合。打分三层：先跑单测这个客观真值，再把关键修改点提炼成 solution 给模型打分，人工抽检兜底——judge 和人工的一致率是<b>〔今晚填〕%</b>。Agent 是不确定性系统，所以<b>报告指标用多轮通过率，不用 best-of</b>——best-of 只用来看能力上限；判断真回归还是噪声，不看总分看 case 翻转：一个 case 三轮里两轮以上从过变不过才计为疑似回归，再人工看 trace 确认。」
+          <span class="who" style="margin-top:6px;">发布与模型升级 · 30s</span>
+          「发布走灰度：内部评测集无明显劣化 → 线上 AB。线上信号不依赖点赞点踩——那个数据太稀疏——主要看行为指标：生成代码的采纳率、任务重试率、用户中途接管率。模型升级时基线滚动：旧模型就是本次基线，但除了总分还必须看 case 翻转明细，因为总分持平不代表没回归——可能过的 case 换了一批，业务关键场景恰好翻车。」
+        </div>
+      </div>
+
+      <!-- 稿4 -->
+      <div class="round">
+        <div class="round-head">
+          <span class="name">稿四 · 本地化链路 AI 化改造（约 3 分钟）</span>
+          <span class="score">Case·检验迁移力</span>
+        </div>
+        <div class="demo">
+          <span class="who">先澄清再动手 · 10s</span>
+          「先确认两个信息：现在合规事故大概什么频次、主要出在文本还是视觉物料？外包和内部质检的分工边界在哪？（现场问，问对问题本身加分）」
+          <span class="who" style="margin-top:6px;">拆解与排序 · 50s</span>
+          「我按<b>严重度 × 频率</b>两个维度排优先级，不只看量。<b>第一优先是合规</b>——术语不一致是玩家骂两句，合规事故是下架和公关危机，严重度天花板。而且合规适合先做，因为它是『检查器』不是『生成器』：不动现有产线、失败模式安全（拦下来给人看）、上线风险最低。<b>第二是游戏内文本翻译</b>——量最大、人工校验成本最高，且它的译文和术语表是公告、营销物料翻译的上游 Context，先做它，下游全部受益。<b>第三才是公告和物料</b>，消费上游沉淀的术语库，边际成本很低。」
+          <span class="who" style="margin-top:6px;">合规怎么做 · 35s</span>
+          「合规做纵深防御，三道闸：<b>生成前</b>，建分地区的合规知识库——和法务、本地团队共建、版本化维护，不是每版临时 Research；<b>生成后</b>，独立的合规检查器做门禁，因为把规则注入 Context 只是约束、不是保证；<b>最后人工终审签字</b>——合规这种事必须有具名责任人。另外它要覆盖视觉物料，服饰禁忌大头在立绘和广告图，不只是文本。」
+          <span class="who" style="margin-top:6px;">翻译与评测 · 40s</span>
+          「翻译主攻一致性和准确性。第一步先把历代版本的官方译文提炼成<b>术语库和风格库</b>——角色名、技能名的多语言对照表，这是整条链路最值钱的 Context 资产。评测有个天然优势：<b>历史版本的人工译文就是现成的评测集，自带 ground truth</b>，冷启动成本极低。术语一致性甚至不需要 LLM 打分——对着术语表跑规则校验就行，便宜又准；语言风格才用 LLM judge 加人工抽检。」
+          <span class="who" style="margin-top:6px;">工作流与组织 · 35s</span>
+          「交付的不是一个翻译模型，是一条<b>有 SLA、有审计日志、有责任节点的新流程</b>：机翻打底 → AI 自检（术语、合规、风格）→ 按置信度分流——高置信直接过、低置信人工复核、合规敏感段强制签核。外包从『翻译者』转型为『审校者』，质检同学转型为『术语库和合规库的维护者 + 终审签字人』。人没有被替掉，是移到了杠杆更高的位置——这也是我在 Flux 上验证过的 adoption 路径：先当副驾建立信任，再逐步放权。」
+          <span class="who" style="margin-top:6px;">半年证明 · 20s</span>
+          「半年后拿三族指标：<b>效率</b>——一个版本本地化的端到端周期、单字成本、人工质检工时；<b>质量</b>——术语一致性错误率、返工率；<b>风险</b>——合规事故数、翻译类玩家舆情量。每个利益方一族，单一数字扛不住追问。」
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= 发行速成 ================= -->
+  <section class="rail-section">
+    <div class="rail-label"><div class="sticky">
+      <span class="eyebrow">// 03</span>
+      <h2>发行<br>速成</h2>
+      <span class="hint">两轴心智模型 + 五条链路，case 题的全部题库范围</span>
+    </div></div>
+    <div>
+      <p class="prose"><b>两轴心智模型</b>：经线 = 业务链路（永远先讲），纬线 = AI 能力形态（research / 分析 / 生成 / 执行，讲到具体方案才用）。米哈游是<b>全球自研自发</b>（HoYoverse + 自建社区 HoYoLAB），发行不是一个时刻，是<b>每 6 周循环一次的版本运营</b>——同样的重流程每六周碾一遍，正是「高频 + 有 SOP + 值得 Agent 化」。</p>
+      <table>
+        <tr><th>链路</th><th>痛点</th><th>AI 化改造</th><th>指标</th></tr>
+        <tr><td><b>本地化</b></td><td>6 周死线内几十万字 × 十几种语言；术语一致性靠人工；文化合规偶发事故</td><td>翻译 Agent + 术语库 / 风格库 Context；机翻后 AI 质检；合规预审 + 后置检查器</td><td>单字成本、交付周期、返工率、<span class="m">合规事故数</span></td></tr>
+        <tr><td><b>买量 UA</b></td><td>素材消耗极快、各地区偏好不同、美术产能是瓶颈</td><td>AIGC 批量产素材、素材效果预估、投放数据分析 Agent（NL 查数、归因）</td><td>素材产能、CPI、ROI、测试通过率</td></tr>
+        <tr><td><b>社区 / 内容生态</b></td><td>多语言多平台海量发言；舆情几小时发酵；UGC 审核量大</td><td>多语言舆情监控与聚类、智能回复、UGC 审核、爆点预警</td><td><span class="m">舆情响应时长</span>、社区活跃、负面发现时间</td></tr>
+        <tr><td><b>客服 / 生命周期</b></td><td>全球时区 × 多语言客服成本极高；工单里的产品信号没人挖</td><td>多语言 AI 客服（与 Bits 排障<b>同构</b>）、工单洞察、个性化召回</td><td>自动解决率、人力成本、满意度、召回转化</td></tr>
+        <tr><td><b>市场情报</b></td><td>信息散在各平台各语言，分析靠人肉</td><td>情报聚合 Agent、NL2SQL 数据问答</td><td>分析时效、决策覆盖度</td></tr>
+      </table>
+      <p class="prose"><b>Case 四步框架</b>（JD 第 4 条明文要的能力）：① 先拆链路——输入到输出经过哪些环节、哪些角色（不懂就现场问，问对问题本身加分）→ ② 找 AI 适配点——高频 + 有模式 + 专家经验可沉淀 → ③ 定落地顺序——先做有真值可评测的（翻译有对照、素材有投放回流），<b>严重度 × 频率</b>双维度排优先级（合规是「出一次就是事故」的严重度天花板）→ ④ 建 Harness 与评测闭环——生产可用、bad case 回流。</p>
+    </div>
+  </section>
+
+  <!-- ================= 经验映射 ================= -->
+  <section class="rail-section">
+    <div class="rail-label"><div class="sticky">
+      <span class="eyebrow">// 04</span>
+      <h2>经验<br>映射</h2>
+      <span class="hint">「没有发行经验」的三发弹药，题眼是「同构问题」</span>
+    </div></div>
+    <div>
+      <table>
+        <tr><th>你做过的</th><th>发行侧孪生场景</th><th>话术锚点</th></tr>
+        <tr><td><b>Bits 排障</b>：SOP 技能库沉淀专家经验，Multi-Agent 自动处理，<span class="m">2 万次/周、Oncall −40%</span></td><td>AI 客服 / 舆情处理：专家经验规模化</td><td>「排障的本质是高频、有 SOP、需要专家经验的<b>事件流处理</b>。客服工单和舆情响应是同构问题。」</td></tr>
+        <tr><td><b>Aime 的 Harness</b>：让 Agent 从「生成」到「可交付」，评测闭环</td><td>素材 / 翻译的生产可用：谁来验证能投、不出文化事故</td><td>「生产可用的关键从来不是生成，是<b>验证</b>。JD 第 2 条要的就是这个。」</td></tr>
+        <tr><td><b>Flux 统一上下文 / 多 Agent 协同</b></td><td>版本发行 = 本地化、素材、社区多线并行的跨职能 pipeline</td><td>「发行一个版本和上线一个需求一样是多角色协作，<b>统一 Context 是提效的钥匙</b>。」</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= 数字武器库 ================= -->
+  <section class="rail-section">
+    <div class="rail-label"><div class="sticky">
+      <span class="eyebrow">// 05</span>
+      <h2>数字<br>武器库</h2>
+      <span class="hint">睡前核实口径，明早背熟；没有的想清楚怎么承认 + 给计划</span>
+    </div></div>
+    <div>
+      <table>
+        <tr><th>数字</th><th>必须配齐的口径</th><th>状态</th></tr>
+        <tr><td>Flux 周活破万</td><td>「活跃」的定义动作（跑了 Agent 任务？还是打开页面？）、时间窗</td><td><span class="m">今晚查</span></td></tr>
+        <tr><td>留存 60–70%</td><td>哪种留存（次日 / 7 日 / 周活用户周留存）+ 分母</td><td><span class="m">今晚查</span></td></tr>
+        <tr><td>共享 Context 功能渗透率</td><td>木马策略生效的证据：活跃用户中用过共享区 / 测试 Harness 的比例</td><td><span class="m">今晚查</span></td></tr>
+        <tr><td>LLM judge 人机一致率</td><td>模型打分 vs 人工打分一致的比例</td><td><span class="m">今晚查</span></td></tr>
+        <tr><td>Bits：2 万次/周、Oncall −40%、MTTR −20%</td><td>统计范围（哪些业务线）、对比基线的时间段</td><td>已有，补口径</td></tr>
+        <tr><td>Aime：周活 7.5 万、渗透 90%</td><td>渗透率的分母（全体研发？活跃研发？）</td><td>已有，补口径</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= 临场装备 ================= -->
+  <section class="rail-section">
+    <div class="rail-label"><div class="sticky">
+      <span class="eyebrow">// 06</span>
+      <h2>临场<br>装备</h2>
+      <span class="hint">术语发音 / 反问 / 睡前清单</span>
+    </div></div>
+    <div>
+      <p class="prose"><b>术语念清楚</b>——今晚口头出现过的含混说法，每个清晰说三遍再进场（念不清会瓦解「Agent 专家」人设）：</p>
+      <div class="terms">
+        <span class="chip"><s>HANIX / Anax</s><b>Harness</b></span>
+        <span class="chip"><s>Process use</s><b>Computer Use</b></span>
+        <span class="chip"><s>Deeply / DeepBlue 测试</s><b>Deep Research</b></span>
+        <span class="chip"><s>脑包</s><b>脑暴（Brainstorm）</b></span>
+        <span class="chip"><s>design more</s><b>DesignMode</b></span>
+      </div>
+      <p class="prose" style="margin-top:12px;"><b>反问环节两问</b>（本身就是考察项）：</p>
+      <ul class="keeps">
+        <li>「发行 AI 团队和公司模型团队的<b>协作机制</b>是什么？有没有能力互通或轮岗？」——顺便解你自己的心结。</li>
+        <li>「这个岗位<b>半年内最重要的一个里程碑</b>是什么？」——显示落地思维，也探岗位虚实。</li>
+      </ul>
+      <p class="prose" style="margin-top:12px;"><b>睡前必做</b>：</p>
+      <ul class="check">
+        <li><b>逛 HoYoLAB 30 分钟</b>：看星铁或绝区零最近版本的公告区 + 评论区，带走 1–2 个具体观察（「你玩过我们游戏吗」的弹药）。</li>
+        <li>数字武器库四个「今晚查」逐个核实。</li>
+        <li>两个决策故事各补一个<b>验证结尾</b>（上线后什么数据 / 反馈证明拍对了）。</li>
+        <li>五句救命绳 + 90 秒发行 AI 化版本，各出声练一遍。</li>
+        <li>五条链路的「痛点 + 指标」能脱口而出。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="coda">
+    面试之外，本周两件事别忘：<b>① 大疆 offer 问清回复期限 + 摇摆职级的转实线条件</b>（团队几人、汇报给谁、什么条件转）；<b>② 摸底字节内部</b>——合并进豆包对你可能恰是进入「模型伴生 Agent 产品层」的捷径，3 次 E 绩效在合并期是硬通货。在没面过任何一家模型公司之前，别用大疆 offer 关掉这局牌。
+  </footer>
+
+</div>
+</body>
+</html>

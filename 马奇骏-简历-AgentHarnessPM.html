@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>马奇骏 · Agent Harness 产品经理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B1E1B;
+    --body:#33362F;
+    --muted:#6E7266;
+    --pine:#2B5745;
+    --pine-strong:#1F4536;
+    --pine-soft:#EBF1EA;
+    --paper:#FDFCF9;
+    --rule:#DCD8CB;
+    --backdrop:#E8E5DA;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  html{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  body{
+    background:var(--backdrop);
+    font-family:'IBM Plex Sans',-apple-system,'Helvetica Neue',Arial,sans-serif;
+    color:var(--body);
+    display:flex;
+    justify-content:center;
+    padding:28px 16px;
+  }
+  .page{
+    width:210mm;
+    min-height:297mm;
+    max-width:100%;
+    background:var(--paper);
+    box-shadow:0 1px 3px rgba(27,30,27,.08), 0 12px 32px rgba(27,30,27,.12);
+    padding:11mm 14mm;
+  }
+
+  /* ---------- header ---------- */
+  .head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:1.5px solid var(--ink);
+    padding-bottom:10px;
+  }
+  .head h1{
+    margin:0 0 4px;
+    font-family:'IBM Plex Serif',Georgia,serif;
+    font-weight:600;
+    font-size:27px;
+    color:var(--ink);
+    letter-spacing:.01em;
+  }
+  .role-line{
+    margin:0;
+    font-size:12.5px;
+    color:var(--muted);
+    font-weight:500;
+  }
+  .role-line b{color:var(--pine-strong);font-weight:600;}
+  .contact{
+    text-align:right;
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+
+  /* ---------- eyebrow / section labels ---------- */
+  .eyebrow{
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:9.5px;
+    color:var(--pine);
+    letter-spacing:.02em;
+  }
+
+  /* ---------- core strengths band ---------- */
+  .strengths{
+    background:var(--pine-soft);
+    border-left:3px solid var(--pine);
+    border-radius:3px;
+    padding:8px 14px 9px;
+    margin:8px 0 3px;
+  }
+  .strengths-title{
+    margin:0 0 6px;
+    font-family:'IBM Plex Serif',Georgia,serif;
+    font-weight:600;
+    font-size:13.5px;
+    color:var(--ink);
+  }
+  .strength-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:5px 18px;
+  }
+  .strength-item{font-size:10.8px;line-height:1.36;}
+  .strength-item b{
+    display:block;
+    color:var(--pine-strong);
+    font-weight:600;
+    font-size:11.3px;
+    margin-bottom:1px;
+  }
+
+  /* ---------- rail sections ---------- */
+  .rail-section{
+    display:grid;
+    grid-template-columns:72px 1fr;
+    gap:10px;
+    margin-top:10px;
+    break-inside:avoid;
+  }
+  .rail-label h2{
+    margin:2px 0 0;
+    font-family:'IBM Plex Serif',Georgia,serif;
+    font-weight:600;
+    font-size:18px;
+    color:var(--ink);
+  }
+  .rail-label .eyebrow{display:block;margin-bottom:1px;}
+
+  .company-group{margin-bottom:9px;}
+  .company-group:last-child{margin-bottom:0;}
+  .company-name{
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--muted);
+    margin:0 0 6px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+
+  .entry{
+    position:relative;
+    padding-left:16px;
+    margin-bottom:7px;
+    break-inside:avoid;
+  }
+  .entry:last-child{margin-bottom:0;}
+  .entry::before{
+    content:"";
+    position:absolute;
+    left:0;top:5px;
+    width:6.5px;height:6.5px;
+    border-radius:50%;
+    border:1.4px solid var(--pine);
+    background:var(--paper);
+  }
+  .entry::after{
+    content:"";
+    position:absolute;
+    left:2.75px;top:13px;bottom:-7px;
+    width:1px;
+    background:var(--rule);
+  }
+  .entry:last-child::after{display:none;}
+
+  .entry-head{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    gap:6px;
+    margin-bottom:2px;
+  }
+  .entry-name{font-size:13.5px;font-weight:600;color:var(--ink);}
+  .entry-gloss{font-size:10.5px;color:var(--muted);}
+  .entry-role{font-size:11px;color:var(--muted);}
+  .entry-date{
+    margin-left:auto;
+    font-family:'IBM Plex Mono',Menlo,monospace;
+    font-size:10.5px;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+
+  .entry-line{margin:2px 0;font-size:11.2px;line-height:1.42;color:var(--body);}
+  .entry-line b{color:var(--pine-strong);font-weight:600;margin-right:4px;}
+  .metric{color:var(--pine-strong);font-weight:600;}
+
+  .entry-bullets{margin:3px 0;padding-left:14px;}
+  .entry-bullets li{
+    font-size:11.2px;
+    line-height:1.42;
+    color:var(--body);
+    margin-bottom:1px;
+  }
+  .entry-bullets li::marker{color:var(--pine);}
+
+  /* ---------- self-eval ---------- */
+  .eval-list{margin:2px 0 0;padding-left:14px;}
+  .eval-list li{
+    font-size:11.3px;
+    line-height:1.48;
+    color:var(--body);
+    margin-bottom:4px;
+  }
+  .eval-list li::marker{color:var(--pine);}
+  .eval-list li:last-child{margin-bottom:0;}
+
+  /* ---------- print ---------- */
+  @page{size:A4;margin:0;}
+  @media print{
+    body{background:var(--paper);padding:0;display:block;}
+    .page{box-shadow:none;width:auto;min-height:auto;padding:11mm 14mm;}
+  }
+
+  /* ---------- narrow screens ---------- */
+  @media screen and (max-width:210mm){
+    body{padding:0;}
+    .page{width:100%;padding:7mm 5mm;box-shadow:none;}
+    .strength-grid{grid-template-columns:1fr;}
+    .rail-section{grid-template-columns:1fr;}
+    .rail-label{display:flex;align-items:baseline;gap:6px;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="head">
+    <div>
+      <h1>马奇骏</h1>
+      <p class="role-line"><b>AI 产品经理</b> · 5 年产品经验 / 3 年 AI 产品经验 · 1998.01</p>
+    </div>
+    <div class="contact">
+      <div>15815326363</div>
+      <div>m.dadada.q@gmail.com</div>
+    </div>
+  </header>
+
+  <section class="strengths">
+    <h2 class="strengths-title"><span class="eyebrow">// </span>核心优势</h2>
+    <div class="strength-grid">
+      <div class="strength-item">
+        <b>三年 3 款 Agent 产品 0→1 到规模化</b>
+        Flux / Aime / Bits 排障相继落地，最高周活 7.5 万，渗透 90% 研发群体
+      </div>
+      <div class="strength-item">
+        <b>Agent 产品形态演进的一线实践</b>
+        从 Oncall 单点排障，到通用 Agent，再到多 Agent 组织协作，连续经历 Agent 产品从解决单点问题到推动组织协同的演进
+      </div>
+      <div class="strength-item">
+        <b>Coding Agent 深度用户</b>
+        日常工作深度使用 Claude Code、Codex；业余独立开发通用 Agent 与虚拟世界构造 Agent，对能力边界与产品体验保持一手判断
+      </div>
+      <div class="strength-item">
+        <b>研发全链路的一线经验</b>
+        5 年产品实践覆盖代码生成、测试、部署、Oncall 与 Agent 基础设施，对研发工具链和组织协作有系统认知
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- 工作 ---------- -->
+  <section class="rail-section">
+    <div class="rail-label">
+      <span class="eyebrow">// </span>
+      <h2>工作</h2>
+    </div>
+    <div>
+      <div class="entry">
+        <div class="entry-head">
+          <span class="entry-name">字节跳动</span>
+          <span class="entry-role">AI 产品经理</span>
+          <span class="entry-date">2023.08 — 至今</span>
+        </div>
+        <p class="entry-line"><b>成果</b>5 个绩效周期获 2 次 E 绩效、1 次 M+ 绩效；打造三款面向内部万级用户规模的 AI 产品</p>
+      </div>
+      <div class="entry">
+        <div class="entry-head">
+          <span class="entry-name">网易</span>
+          <span class="entry-role">DevOps 产品经理</span>
+          <span class="entry-date">2023.03 — 2023.08</span>
+        </div>
+        <p class="entry-line"><b>成果</b>超额完成阶段性 POC 目标</p>
+      </div>
+      <div class="entry">
+        <div class="entry-head">
+          <span class="entry-name">开源中国</span>
+          <span class="entry-role">DevOps 产品经理</span>
+          <span class="entry-date">2020.11 — 2023.03</span>
+        </div>
+        <p class="entry-line"><b>成果</b>获评「最佳产品」，超额完成营收目标</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- 项目 ---------- -->
+  <section class="rail-section">
+    <div class="rail-label">
+      <span class="eyebrow">// </span>
+      <h2>项目</h2>
+    </div>
+    <div>
+
+      <div class="company-group">
+        <p class="company-name">个人项目</p>
+
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-name">个人 Agent 项目</span>
+            <span class="entry-date">2026.05 — 至今</span>
+          </div>
+          <p class="entry-line">业余独立开发通用 Agent 运行时与虚拟世界构造 Agent：前者聚焦稳定可控的执行环境，落到 OS 级沙箱、权限控制与可复现的并发编排；后者探索 Agent 驱动的虚拟世界生成</p>
+        </div>
+      </div>
+
+      <div class="company-group">
+        <p class="company-name">字节跳动</p>
+
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-name">Flux</span>
+            <span class="entry-gloss">字节内部多 Agent 研发协作平台</span>
+            <span class="entry-date">2026.03 — 至今</span>
+          </div>
+          <p class="entry-line"><b>定位</b>面向组织协作的多 Agent 研发平台，统一上下文编排 Agent 与成员协同，推动需求从构思到上线</p>
+          <ul class="entry-bullets">
+            <li>项目发起人，从 0 到 1 定义产品定位与架构，主导「多 Agent 编排、统一上下文、研发链路闭环」核心设计</li>
+            <li>设计多 Agent 协作与任务感知能力，支持随时调度 Codex、Claude Code 等 SOTA Agent 并统一入口跟踪进展</li>
+            <li>建设研发后链路 Harness 能力（Spec Driven、极速部署、LogID 分析），让 Agent 延展到测试、调试与上线</li>
+          </ul>
+          <p class="entry-line">精准命中用户需求，<span class="metric">周活迅速破万</span></p>
+        </div>
+
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-name">Aime</span>
+            <span class="entry-gloss">字节内部通用 Agent 产品</span>
+            <span class="entry-date">2025.07 — 2026.03</span>
+          </div>
+          <p class="entry-line"><b>定位</b>通过 Skills、MCP 串联研发平台与工具链，动态组装 Worker 处理研发全场景复杂任务</p>
+          <ul class="entry-bullets">
+            <li>优化 Agent 效率层能力：任务拆解、上下文构建、Skill 生产，提升复杂工程任务的执行能力</li>
+            <li>建设研发链路 Harness 能力，打通云环境、测试、验证、调试分析，使 Agent 从"生成代码"升级为"可交付"</li>
+            <li>推动 SDD、本地/云端 Handoff、高并发 Worker 等能力建设，覆盖方案拆解、测试验证与人机协作</li>
+          </ul>
+          <p class="entry-line"><span class="metric">周活跃用户 7.5 万，渗透 90% 研发群体</span>，成为内部使用频率最高的 AI 工具之一</p>
+        </div>
+
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-name">Bits 排障</span>
+            <span class="entry-gloss">字节内部智能排障平台</span>
+            <span class="entry-date">2023.12 — 2025.08</span>
+          </div>
+          <p class="entry-line">主导 Oncall 场景的 SOP 技能库与自动化排障能力建设，把专家经验沉淀为可复用流程；<span class="metric">每周自动化修复超 2 万次故障，Oncall 下降超 40%，MTTR 下降超 20%</span></p>
+        </div>
+      </div>
+
+      <div class="company-group">
+        <p class="company-name">网易</p>
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-name">轻舟 DevOps</span>
+            <span class="entry-gloss">网易内部效能度量平台</span>
+            <span class="entry-date">2023.03 — 2023.08</span>
+          </div>
+          <p class="entry-line">串联离散研发工具打造自动化 DevOps 工具链，从 0 到 1 打造特色效能度量产品打开 B 端市场；<span class="metric">6-7 月 POC 客户达 6 家，同比增长 200%</span></p>
+        </div>
+      </div>
+
+      <div class="company-group">
+        <p class="company-name">开源中国</p>
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-name">Gitee DevOps</span>
+            <span class="entry-gloss">开源中国 DevOps 产品线</span>
+            <span class="entry-date">2020.11 — 2023.03</span>
+          </div>
+          <p class="entry-line">打造"一站式 DevOps"平台，提升 Gitee Code 易用性，巩固公有云开源市场综合能力第一；<span class="metric">年度营收超预期达 2500 万，付费率增长超 200%，获客成本降低 60%</span></p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ---------- 自评 ---------- -->
+  <section class="rail-section">
+    <div class="rail-label">
+      <span class="eyebrow">// </span>
+      <h2>自评</h2>
+    </div>
+    <div>
+      <ul class="eval-list">
+        <li>对内主导面向万人级研发群体的 AI 能力建设，对外推动营收与增长目标达成；具备出色的跨团队协作能力与数据驱动的决策意识</li>
+        <li>保持对 AI 行业前沿的高频跟进，习惯把新范式（Agent、Skill、Harness）快速转化为可落地的产品方案</li>
+        <li>毕业于湘潭大学工业设计专业，具备良好的美学素养与产品设计直觉，注重体验与细节</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,2660 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:,">
+  <title>从一句话到任务完成 · 三年 Agent 产品实践与思考</title>
+  <style>
+    :root {
+      --paper: #f4f1ea;
+      --paper-2: #fbfaf7;
+      --ink: #171916;
+      --body: #34372f;
+      --muted: #74776d;
+      --line: rgba(23, 25, 22, 0.14);
+      --line-strong: rgba(23, 25, 22, 0.28);
+      --blue: #315f91;
+      --blue-soft: #e8eef5;
+      --green: #315f4b;
+      --green-soft: #e8f0eb;
+      --rust: #a34f36;
+      --rust-soft: #f4e8e2;
+      --amber: #996b27;
+      --amber-soft: #f4ede0;
+      --purple: #5f598e;
+      --purple-soft: #eceaf4;
+      --shadow: 0 22px 70px rgba(32, 32, 24, 0.12);
+      --radius: 24px;
+      --ease: cubic-bezier(.22, .8, .25, 1);
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #191b18;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    button { font: inherit; }
+
+    #deck {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      background: var(--paper);
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    #deck::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      opacity: .38;
+      background:
+        radial-gradient(circle at 10% 20%, rgba(49, 95, 145, .11), transparent 29%),
+        radial-gradient(circle at 88% 82%, rgba(49, 95, 75, .09), transparent 28%),
+        linear-gradient(rgba(23, 25, 22, .018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 25, 22, .018) 1px, transparent 1px);
+      background-size: auto, auto, 36px 36px, 36px 36px;
+    }
+
+    #deck::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      box-shadow: inset 0 0 120px rgba(24, 25, 20, .07);
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(32px) scale(.995);
+      transition: opacity .38s var(--ease), transform .38s var(--ease), visibility .38s;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .slide.is-active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .slide.is-before { transform: translateX(-32px) scale(.995); }
+
+    .slide-inner {
+      position: relative;
+      width: min(100%, 1720px);
+      height: 100%;
+      padding: clamp(40px, 5.4vh, 72px) clamp(44px, 6vw, 116px) clamp(68px, 8.4vh, 108px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: clamp(20px, 3vh, 38px);
+    }
+
+    .slide-top {
+      position: absolute;
+      left: clamp(44px, 6vw, 116px);
+      right: clamp(44px, 6vw, 116px);
+      top: clamp(24px, 3.3vh, 44px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--muted);
+      font-size: clamp(10px, .78vw, 14px);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .slide-top .section-name {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .slide-top .section-name::before {
+      content: "";
+      width: 28px;
+      height: 2px;
+      background: currentColor;
+      opacity: .65;
+    }
+
+    .slide-index {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .08em;
+    }
+
+    h1,
+    h2,
+    h3,
+    p { margin: 0; }
+
+    h1,
+    h2,
+    h3 { letter-spacing: -.035em; }
+
+    .display {
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+      font-size: clamp(54px, 6.25vw, 114px);
+      line-height: .98;
+      font-weight: 700;
+      letter-spacing: -.055em;
+    }
+
+    .display.medium {
+      font-size: clamp(44px, 5vw, 88px);
+      line-height: 1.04;
+    }
+
+    .display.small {
+      font-size: clamp(38px, 4.2vw, 74px);
+      line-height: 1.08;
+    }
+
+    .headline {
+      font-size: clamp(34px, 3.6vw, 66px);
+      line-height: 1.08;
+      font-weight: 760;
+      max-width: 23ch;
+    }
+
+    .subtitle {
+      font-size: clamp(17px, 1.42vw, 27px);
+      line-height: 1.6;
+      color: var(--body);
+      max-width: 58ch;
+    }
+
+    .lead {
+      font-size: clamp(20px, 1.7vw, 31px);
+      line-height: 1.52;
+      color: var(--body);
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: clamp(11px, .86vw, 15px);
+      font-weight: 800;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+
+    .muted { color: var(--muted); }
+    .blue { color: var(--blue); }
+    .green { color: var(--green); }
+    .rust { color: var(--rust); }
+    .amber { color: var(--amber); }
+    .purple { color: var(--purple); }
+
+    .nowrap { white-space: nowrap; }
+
+    .rule {
+      height: 1px;
+      background: var(--line);
+      width: 100%;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: center;
+      gap: clamp(36px, 5.5vw, 94px);
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(16px, 2vw, 30px);
+    }
+
+    .card {
+      background: rgba(255, 255, 255, .68);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 34px rgba(30, 31, 25, .045);
+    }
+
+    .soft-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .5);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255,255,255,.52);
+      font-size: clamp(10px, .78vw, 14px);
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+
+    .tag::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: .72;
+    }
+
+    .tag.blue-tag { color: var(--blue); background: var(--blue-soft); border-color: rgba(49,95,145,.18); }
+    .tag.green-tag { color: var(--green); background: var(--green-soft); border-color: rgba(49,95,75,.18); }
+    .tag.rust-tag { color: var(--rust); background: var(--rust-soft); border-color: rgba(163,79,54,.18); }
+
+    .fragment {
+      opacity: .16;
+      transform: translateY(8px);
+      filter: saturate(.35);
+      transition: opacity .42s var(--ease), transform .42s var(--ease), filter .42s var(--ease);
+    }
+
+    .fragment.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+      filter: saturate(1);
+    }
+
+    .speaker-note { display: none !important; }
+
+    /* Cover */
+    .cover .slide-inner {
+      justify-content: space-between;
+      padding-top: clamp(52px, 8vh, 96px);
+      padding-bottom: clamp(74px, 9vh, 112px);
+    }
+
+    .cover-topline,
+    .cover-bottomline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 30px;
+      color: var(--muted);
+      font-size: clamp(11px, .9vw, 16px);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .cover-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, .5fr);
+      align-items: center;
+      gap: clamp(40px, 6vw, 110px);
+    }
+
+    .cover-main .display {
+      max-width: none;
+      font-size: clamp(48px, 5.1vw, 90px);
+      line-height: 1.03;
+    }
+
+    .cover-aside {
+      padding: 24px 0 10px 28px;
+      border-left: 1px solid var(--line-strong);
+      display: grid;
+      gap: 16px;
+    }
+
+    .cover-aside strong {
+      font-size: clamp(18px, 1.35vw, 25px);
+      line-height: 1.4;
+    }
+
+    .cover-aside .aside-kicker {
+      color: var(--green);
+      font-size: clamp(10px, .76vw, 13px);
+      font-weight: 850;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .cover-aside p {
+      color: var(--muted);
+      font-size: clamp(13px, 1vw, 18px);
+      line-height: 1.6;
+    }
+
+    .cover-aside p strong {
+      color: var(--ink);
+      font-size: 1.08em;
+      font-weight: 760;
+    }
+
+    .cover-shift {
+      width: 100%;
+      padding-top: 22px;
+      border-top: 1px solid var(--line-strong);
+      text-transform: none;
+    }
+
+    .cover-shift .shift-source {
+      color: var(--muted);
+      text-decoration: line-through;
+      text-decoration-color: rgba(163,79,54,.5);
+      text-decoration-thickness: 2px;
+    }
+
+    .cover-shift .shift-arrow {
+      color: var(--green);
+      font-size: clamp(20px, 1.6vw, 30px);
+      letter-spacing: 0;
+    }
+
+    .cover-shift .shift-target {
+      color: var(--ink);
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+      font-size: clamp(18px, 1.5vw, 28px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+    }
+
+    /* Contrast */
+    .contrast-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr);
+      gap: clamp(22px, 3vw, 48px);
+      align-items: stretch;
+    }
+
+    .visible-ui,
+    .hidden-world {
+      min-height: clamp(390px, 52vh, 590px);
+      padding: clamp(22px, 2.3vw, 40px);
+    }
+
+    .visible-ui {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: rgba(255,255,255,.78);
+    }
+
+    .visible-ui .headline {
+      font-size: clamp(28px, 2.65vw, 49px);
+    }
+
+    .interaction-shift {
+      display: grid;
+      gap: 13px;
+    }
+
+    .old-flow {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(244,241,234,.72);
+      color: var(--muted);
+      font-size: clamp(10px, .72vw, 13px);
+      white-space: nowrap;
+    }
+
+    .old-flow .mode-label {
+      color: var(--rust);
+      font-weight: 850;
+      margin-right: auto;
+    }
+
+    .old-flow i {
+      color: rgba(23,25,22,.25);
+      font-style: normal;
+    }
+
+    .collapse-copy {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--green);
+      font-size: clamp(10px, .75vw, 13px);
+      font-weight: 760;
+      letter-spacing: .04em;
+    }
+
+    .collapse-copy::before,
+    .collapse-copy::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: rgba(49,95,75,.2);
+    }
+
+    .mini-window {
+      border: 1px solid var(--line);
+      border-radius: 19px;
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 24px 54px rgba(31, 31, 24, .08);
+    }
+
+    .mini-window-head {
+      height: 38px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f6f5f2;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mini-window-head i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #cfcbc0;
+    }
+
+    .prompt-box {
+      margin: 22px;
+      padding: 20px;
+      min-height: 118px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid var(--line-strong);
+      border-radius: 16px;
+      color: var(--body);
+      font-size: clamp(16px, 1.25vw, 23px);
+      line-height: 1.5;
+    }
+
+    .send-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .send-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: white;
+      font-weight: 900;
+    }
+
+    .hidden-world {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      background: rgba(24, 28, 25, .94);
+      color: white;
+      overflow: hidden;
+    }
+
+    .hidden-world::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 80% 20%, rgba(83, 142, 110, .2), transparent 32%),
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: auto, 32px 32px, 32px 32px;
+      pointer-events: none;
+    }
+
+    .world-node {
+      position: relative;
+      z-index: 1;
+      padding: clamp(14px, 1.4vw, 24px);
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 16px;
+      background: rgba(255,255,255,.055);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-width: 0;
+    }
+
+    .world-node b {
+      font-size: clamp(15px, 1.05vw, 20px);
+      letter-spacing: -.01em;
+    }
+
+    .world-node span {
+      color: rgba(255,255,255,.52);
+      font-size: clamp(10px, .76vw, 13px);
+      line-height: 1.4;
+    }
+
+    .world-node.center {
+      grid-column: 2;
+      grid-row: 2;
+      background: rgba(81, 142, 107, .22);
+      border-color: rgba(130, 205, 161, .42);
+      box-shadow: 0 0 42px rgba(68, 134, 96, .22);
+    }
+
+    .world-node.center b { color: #bce0c9; }
+
+    .contrast-thesis {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 34px;
+    }
+
+    .contrast-thesis h2 {
+      font-size: clamp(27px, 2.6vw, 48px);
+      max-width: none;
+      line-height: 1.18;
+    }
+
+    /* Agent loop */
+    .loop-stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1.28fr) minmax(320px, .72fr);
+      gap: clamp(26px, 4vw, 66px);
+      align-items: center;
+    }
+
+    .loop-map {
+      position: relative;
+      min-height: clamp(520px, 64vh, 690px);
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: rgba(255,255,255,.48);
+      overflow: hidden;
+    }
+
+    .loop-map::before {
+      content: "";
+      position: absolute;
+      inset: 15% 12%;
+      border: 1px dashed rgba(49,95,145,.38);
+      border-radius: 50%;
+      transform: rotate(-5deg);
+    }
+
+    .loop-node {
+      position: relative;
+      z-index: 1;
+      padding: clamp(15px, 1.35vw, 23px);
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255,255,255,.89);
+      box-shadow: 0 10px 22px rgba(28,29,23,.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .loop-node .num {
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .12em;
+    }
+
+    .loop-node b {
+      font-size: clamp(16px, 1.28vw, 23px);
+      line-height: 1.2;
+    }
+
+    .loop-node span {
+      color: var(--muted);
+      font-size: clamp(10px, .78vw, 14px);
+      line-height: 1.45;
+    }
+
+    .loop-node.n1 { grid-column: 1; grid-row: 2; }
+    .loop-node.n2 { grid-column: 1 / 3; grid-row: 1; }
+    .loop-node.n3 { grid-column: 3; grid-row: 1; }
+    .loop-node.n4 { grid-column: 4; grid-row: 1 / 3; background: var(--blue-soft); border-color: rgba(49,95,145,.2); }
+    .loop-node.n5 { grid-column: 3; grid-row: 3; background: var(--amber-soft); border-color: rgba(153,107,39,.2); }
+    .loop-node.n6 { grid-column: 2; grid-row: 3; background: var(--rust-soft); border-color: rgba(163,79,54,.2); }
+    .loop-node.n7 { grid-column: 1; grid-row: 3; background: var(--green-soft); border-color: rgba(49,95,75,.2); }
+
+    .loop-copy {
+      display: grid;
+      gap: 26px;
+    }
+
+    .loop-copy .big-eq {
+      padding: 22px 0;
+      border-top: 1px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+      font-size: clamp(24px, 2.2vw, 40px);
+      font-weight: 760;
+      line-height: 1.3;
+    }
+
+    .loop-copy ul,
+    .notes-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 14px;
+    }
+
+    .loop-copy li,
+    .notes-list li {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 12px;
+      color: var(--body);
+      font-size: clamp(14px, 1.08vw, 19px);
+      line-height: 1.55;
+    }
+
+    .loop-copy li::before,
+    .notes-list li::before {
+      content: "↳";
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    /* Control surface */
+    .surface-wrap {
+      display: grid;
+      grid-template-columns: minmax(280px, .62fr) minmax(0, 1.38fr);
+      gap: clamp(30px, 4.5vw, 76px);
+      align-items: stretch;
+    }
+
+    .surface-intro {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 30px;
+    }
+
+    .control-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .control-row {
+      padding: clamp(15px, 1.35vw, 23px) clamp(18px, 1.7vw, 28px);
+      display: grid;
+      grid-template-columns: 52px minmax(160px, .45fr) minmax(0, 1fr);
+      align-items: center;
+      gap: 18px;
+      border-radius: 17px;
+    }
+
+    .control-row .index {
+      color: var(--muted);
+      font: 700 clamp(13px, .9vw, 16px)/1 Georgia, serif;
+    }
+
+    .control-row b {
+      font-size: clamp(17px, 1.25vw, 23px);
+      line-height: 1.2;
+    }
+
+    .control-row p {
+      color: var(--muted);
+      font-size: clamp(12px, .9vw, 16px);
+      line-height: 1.5;
+    }
+
+    .control-row:nth-child(1) { border-left: 4px solid var(--blue); }
+    .control-row:nth-child(2) { border-left: 4px solid var(--purple); }
+    .control-row:nth-child(3) { border-left: 4px solid var(--green); }
+    .control-row:nth-child(4) { border-left: 4px solid var(--amber); }
+    .control-row:nth-child(5) { border-left: 4px solid var(--rust); }
+
+    .certainty {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .certainty div {
+      padding: 18px;
+      border-top: 3px solid currentColor;
+      background: rgba(255,255,255,.38);
+    }
+
+    .certainty b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: clamp(12px, .9vw, 16px);
+    }
+
+    .certainty span {
+      color: var(--muted);
+      font-size: clamp(10px, .75vw, 13px);
+      line-height: 1.45;
+    }
+
+    /* Chapter pages */
+    .chapter .slide-inner { justify-content: center; }
+
+    .chapter-grid {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: clamp(30px, 5vw, 82px);
+      align-items: start;
+    }
+
+    .chapter-number {
+      color: var(--line-strong);
+      font-family: Georgia, serif;
+      font-size: clamp(92px, 10vw, 170px);
+      line-height: .8;
+    }
+
+    .chapter-copy {
+      display: grid;
+      gap: 28px;
+    }
+
+    .chapter-copy .display { max-width: none; }
+
+    .chapter-answer {
+      margin-top: 8px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line-strong);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 30px;
+    }
+
+    .chapter-answer p {
+      max-width: 48ch;
+      color: var(--body);
+      font-size: clamp(16px, 1.35vw, 24px);
+      line-height: 1.55;
+    }
+
+    .chapter-metrics {
+      display: flex;
+      align-items: center;
+      gap: clamp(24px, 3vw, 50px);
+      flex: 0 0 auto;
+    }
+
+    .chapter-metrics div { text-align: right; }
+
+    .chapter-metrics strong {
+      display: block;
+      font: 700 clamp(30px, 3vw, 52px)/1 Georgia, serif;
+      color: var(--green);
+    }
+
+    .chapter-metrics span {
+      color: var(--muted);
+      font-size: clamp(10px, .8vw, 14px);
+    }
+
+    /* Aime architecture */
+    .arch-shell {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(150px, .7fr) 46px minmax(180px, .86fr) 46px minmax(220px, 1.1fr) 46px minmax(210px, 1fr);
+      gap: 10px;
+      align-items: stretch;
+      min-height: clamp(470px, 59vh, 650px);
+    }
+
+    .arch-arrow {
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: clamp(22px, 2vw, 34px);
+    }
+
+    .arch-column {
+      padding: clamp(18px, 1.75vw, 30px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      border-radius: 22px;
+      min-width: 0;
+    }
+
+    .arch-column.blue-col { background: var(--blue-soft); border: 1px solid rgba(49,95,145,.2); }
+    .arch-column.purple-col { background: var(--purple-soft); border: 1px solid rgba(95,89,142,.2); }
+    .arch-column.green-col { background: var(--green-soft); border: 1px solid rgba(49,95,75,.2); }
+    .arch-column.amber-col { background: var(--amber-soft); border: 1px solid rgba(153,107,39,.2); }
+
+    .arch-column .arch-kicker {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: clamp(9px, .68vw, 12px);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .arch-column h3 {
+      font-size: clamp(20px, 1.75vw, 31px);
+      line-height: 1.12;
+    }
+
+    .arch-item {
+      padding: 13px 14px;
+      border: 1px solid rgba(23,25,22,.11);
+      border-radius: 13px;
+      background: rgba(255,255,255,.7);
+      display: grid;
+      gap: 5px;
+    }
+
+    .arch-item b {
+      font-size: clamp(13px, .95vw, 17px);
+    }
+
+    .arch-item span {
+      color: var(--muted);
+      font-size: clamp(9px, .68vw, 12px);
+      line-height: 1.4;
+    }
+
+    .arch-item.worker {
+      border-color: rgba(49,95,75,.22);
+      box-shadow: 0 9px 21px rgba(49,95,75,.07);
+    }
+
+    .feedback-loop {
+      position: absolute;
+      left: 23%;
+      right: 5%;
+      bottom: -18px;
+      height: 45px;
+      border-left: 2px solid rgba(163,79,54,.45);
+      border-right: 2px solid rgba(163,79,54,.45);
+      border-bottom: 2px solid rgba(163,79,54,.45);
+      border-radius: 0 0 28px 28px;
+      color: var(--rust);
+      display: grid;
+      place-items: end center;
+      font-size: clamp(9px, .7vw, 12px);
+      font-weight: 800;
+      letter-spacing: .08em;
+      padding-bottom: 5px;
+    }
+
+    .feedback-loop::before {
+      content: "↖";
+      position: absolute;
+      left: -9px;
+      top: -16px;
+      font-size: 22px;
+    }
+
+    .arch-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 28px;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: clamp(12px, .9vw, 16px);
+    }
+
+    .arch-footer strong { color: var(--ink); }
+
+    /* Trace */
+    .task-brief {
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-left: 5px solid var(--blue);
+    }
+
+    .task-brief .avatar {
+      flex: 0 0 auto;
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--blue);
+      color: white;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .task-brief p {
+      font-size: clamp(16px, 1.3vw, 23px);
+      line-height: 1.45;
+      font-weight: 680;
+    }
+
+    .trace {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      position: relative;
+    }
+
+    .trace::before {
+      content: "";
+      position: absolute;
+      left: 6%;
+      right: 6%;
+      top: 28px;
+      height: 2px;
+      background: var(--line-strong);
+    }
+
+    .trace-step {
+      position: relative;
+      z-index: 1;
+      min-height: clamp(265px, 34vh, 390px);
+      padding: 0 6px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+
+    .trace-dot {
+      width: 58px;
+      height: 58px;
+      border: 7px solid var(--paper);
+      border-radius: 50%;
+      background: var(--ink);
+      display: grid;
+      place-items: center;
+      color: white;
+      font: 700 15px/1 Georgia, serif;
+      box-shadow: 0 0 0 1px var(--line);
+    }
+
+    .trace-step.fail .trace-dot { background: var(--rust); }
+    .trace-step.done .trace-dot { background: var(--green); }
+
+    .trace-step h3 {
+      font-size: clamp(16px, 1.15vw, 21px);
+      line-height: 1.25;
+      min-height: 2.5em;
+    }
+
+    .trace-step p {
+      color: var(--muted);
+      font-size: clamp(10px, .78vw, 14px);
+      line-height: 1.5;
+    }
+
+    .trace-step .lever {
+      margin-top: auto;
+      width: fit-content;
+      padding: 5px 8px;
+      border-radius: 7px;
+      background: rgba(23,25,22,.06);
+      color: var(--body);
+      font-size: clamp(9px, .65vw, 11px);
+      font-weight: 700;
+    }
+
+    .trace-insight {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 18px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .trace-insight strong {
+      color: var(--rust);
+      font-size: clamp(22px, 2vw, 36px);
+    }
+
+    .trace-insight p {
+      color: var(--body);
+      font-size: clamp(14px, 1.05vw, 19px);
+      line-height: 1.5;
+    }
+
+    /* Decisions */
+    .decision-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(16px, 2vw, 30px);
+    }
+
+    .decision {
+      min-height: clamp(380px, 48vh, 520px);
+      padding: clamp(24px, 2.5vw, 42px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 26px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .decision::after {
+      content: attr(data-num);
+      position: absolute;
+      right: -2px;
+      bottom: -34px;
+      color: rgba(23,25,22,.04);
+      font: 800 clamp(110px, 12vw, 190px)/1 Georgia, serif;
+      pointer-events: none;
+    }
+
+    .decision h3 {
+      font-size: clamp(25px, 2.05vw, 37px);
+      line-height: 1.12;
+      max-width: 12ch;
+    }
+
+    .versus {
+      display: grid;
+      gap: 9px;
+      color: var(--muted);
+      font-size: clamp(12px, .9vw, 16px);
+    }
+
+    .versus .chosen {
+      color: var(--ink);
+      font-size: clamp(16px, 1.25vw, 22px);
+      font-weight: 750;
+    }
+
+    .decision p {
+      position: relative;
+      z-index: 1;
+      color: var(--body);
+      font-size: clamp(13px, 1vw, 18px);
+      line-height: 1.58;
+    }
+
+    .decision .tradeoff {
+      position: relative;
+      z-index: 1;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: clamp(10px, .76vw, 13px);
+      line-height: 1.5;
+    }
+
+    /* Flux transition and value chain */
+    .local-optimum {
+      display: grid;
+      grid-template-columns: minmax(0, .72fr) 90px minmax(0, 1.28fr);
+      align-items: center;
+      gap: clamp(20px, 3vw, 50px);
+    }
+
+    .personal-loop {
+      aspect-ratio: 1;
+      max-height: 440px;
+      border: 1px solid rgba(49,95,145,.27);
+      border-radius: 50%;
+      background: var(--blue-soft);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 42px;
+      box-shadow: inset 0 0 0 22px rgba(255,255,255,.26);
+    }
+
+    .personal-loop strong {
+      display: block;
+      font-size: clamp(28px, 2.7vw, 48px);
+      margin-bottom: 12px;
+    }
+
+    .personal-loop span {
+      color: var(--blue);
+      font-size: clamp(13px, 1vw, 18px);
+      line-height: 1.5;
+    }
+
+    .not-equal {
+      font-family: Georgia, serif;
+      color: var(--rust);
+      font-size: clamp(56px, 6vw, 98px);
+      text-align: center;
+    }
+
+    .org-chain-mini {
+      display: grid;
+      gap: 14px;
+    }
+
+    .org-chain-mini .mini-step {
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 88px 1fr auto;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .org-chain-mini .mini-step b {
+      font-size: clamp(15px, 1.1vw, 20px);
+    }
+
+    .org-chain-mini .mini-step span {
+      color: var(--muted);
+      font-size: clamp(11px, .8vw, 14px);
+    }
+
+    .org-chain-mini .mini-step em {
+      font-style: normal;
+      color: var(--rust);
+      font-size: clamp(10px, .72vw, 13px);
+      font-weight: 800;
+    }
+
+    .value-chain {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      align-items: center;
+      position: relative;
+      margin-top: 24px;
+    }
+
+    .chain-step {
+      position: relative;
+      min-height: clamp(220px, 28vh, 310px);
+      padding: clamp(20px, 2vw, 34px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.52);
+    }
+
+    .chain-step:first-child { border-radius: 22px 0 0 22px; }
+    .chain-step:last-child { border-radius: 0 22px 22px 0; }
+
+    .chain-step.dev {
+      transform: translateY(-22px);
+      background: var(--blue-soft);
+      border-color: rgba(49,95,145,.28);
+      box-shadow: 0 24px 50px rgba(49,95,145,.12);
+    }
+
+    .chain-step.dev::before {
+      content: "× 变快";
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      top: -31px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px 9px 0 0;
+      background: var(--blue);
+      color: white;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+    }
+
+    .chain-step .chain-num {
+      color: var(--muted);
+      font: 700 12px/1 Georgia, serif;
+    }
+
+    .chain-step h3 {
+      font-size: clamp(21px, 1.8vw, 32px);
+    }
+
+    .chain-step p {
+      color: var(--muted);
+      font-size: clamp(11px, .84vw, 15px);
+      line-height: 1.5;
+    }
+
+    .queue {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .queue i {
+      width: 18px;
+      height: 6px;
+      border-radius: 4px;
+      background: rgba(163,79,54,.55);
+    }
+
+    .chain-finding {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .finding {
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--body);
+      font-size: clamp(11px, .86vw, 15px);
+      line-height: 1.4;
+    }
+
+    .finding b {
+      flex: 0 0 auto;
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--rust-soft);
+      color: var(--rust);
+      font-size: 11px;
+    }
+
+    /* Flux environment */
+    .flux-env {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto auto auto;
+      gap: 18px;
+      min-height: clamp(490px, 61vh, 650px);
+      padding: clamp(20px, 2.2vw, 36px);
+      background: rgba(255,255,255,.46);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+    }
+
+    .role-row,
+    .agent-row,
+    .harness-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .role,
+    .agent-box,
+    .harness-box {
+      min-width: 0;
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.76);
+    }
+
+    .role b,
+    .agent-box b,
+    .harness-box b {
+      display: block;
+      font-size: clamp(13px, .96vw, 17px);
+      line-height: 1.25;
+    }
+
+    .role span,
+    .agent-box span,
+    .harness-box span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: clamp(9px, .65vw, 12px);
+      line-height: 1.35;
+    }
+
+    .shared-context {
+      position: relative;
+      padding: clamp(20px, 2vw, 34px);
+      border-radius: 20px;
+      background: var(--green-soft);
+      border: 1px solid rgba(49,95,75,.24);
+      display: grid;
+      grid-template-columns: .72fr 1.28fr;
+      align-items: center;
+      gap: 24px;
+      overflow: hidden;
+    }
+
+    .shared-context::after {
+      content: "CONTEXT";
+      position: absolute;
+      right: 22px;
+      bottom: -22px;
+      color: rgba(49,95,75,.08);
+      font: 800 clamp(60px, 7vw, 110px)/1 Georgia, serif;
+    }
+
+    .shared-context h3 {
+      font-size: clamp(24px, 2vw, 36px);
+      color: var(--green);
+    }
+
+    .context-assets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .context-assets span {
+      padding: 8px 10px;
+      border: 1px solid rgba(49,95,75,.18);
+      border-radius: 9px;
+      background: rgba(255,255,255,.58);
+      color: var(--body);
+      font-size: clamp(10px, .72vw, 13px);
+      font-weight: 700;
+    }
+
+    .agent-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .agent-box { background: var(--purple-soft); border-color: rgba(95,89,142,.2); }
+    .agent-box strong { color: var(--purple); }
+
+    .harness-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .harness-box { background: var(--amber-soft); border-color: rgba(153,107,39,.2); }
+
+    .flux-caption {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      color: var(--muted);
+      font-size: clamp(12px, .9vw, 16px);
+    }
+
+    .flux-caption strong { color: var(--ink); }
+
+    .metric-caveat {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--rust-soft);
+      color: var(--rust);
+      font-size: clamp(10px, .75vw, 13px);
+      font-weight: 750;
+    }
+
+    /* Flux decisions */
+    .flux-decisions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: clamp(22px, 3vw, 48px);
+    }
+
+    .flux-decision {
+      min-height: clamp(410px, 52vh, 570px);
+      padding: clamp(28px, 3vw, 50px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .flux-decision .choice-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+      gap: 12px;
+    }
+
+    .choice {
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px dashed var(--line-strong);
+      color: var(--muted);
+      font-size: clamp(12px, .9vw, 16px);
+      line-height: 1.45;
+    }
+
+    .choice.selected {
+      color: var(--ink);
+      background: var(--green-soft);
+      border: 1px solid rgba(49,95,75,.25);
+      font-weight: 720;
+    }
+
+    .choice-vs {
+      align-self: center;
+      color: var(--muted);
+      font: italic 700 14px/1 Georgia, serif;
+    }
+
+    .flux-decision h3 {
+      font-size: clamp(27px, 2.3vw, 42px);
+      line-height: 1.15;
+      max-width: 15ch;
+    }
+
+    .flux-decision p {
+      color: var(--body);
+      font-size: clamp(14px, 1.05vw, 19px);
+      line-height: 1.56;
+    }
+
+    .reasons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .reasons span {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(23,25,22,.055);
+      color: var(--body);
+      font-size: clamp(10px, .72vw, 13px);
+      font-weight: 700;
+    }
+
+    .north-star {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 20px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: clamp(11px, .84vw, 15px);
+    }
+
+    .north-star strong {
+      color: var(--ink);
+      font-size: clamp(15px, 1.1vw, 20px);
+    }
+
+    .north-star .arrow { color: var(--green); font-size: 22px; }
+
+    /* Synthesis */
+    .expansion {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0;
+      min-height: clamp(420px, 53vh, 590px);
+      align-items: stretch;
+    }
+
+    .expansion-stage {
+      position: relative;
+      padding: clamp(28px, 3vw, 52px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 26px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.45);
+      overflow: hidden;
+    }
+
+    .expansion-stage:first-child { border-radius: 26px 0 0 26px; }
+    .expansion-stage:last-child { border-radius: 0 26px 26px 0; }
+    .expansion-stage + .expansion-stage { border-left: 0; }
+    .expansion-stage:nth-child(2) { background: var(--blue-soft); }
+    .expansion-stage:nth-child(3) { background: var(--green-soft); }
+
+    .expansion-stage::after {
+      content: attr(data-big);
+      position: absolute;
+      right: -10px;
+      bottom: -30px;
+      color: rgba(23,25,22,.04);
+      font: 800 clamp(100px, 11vw, 180px)/1 Georgia, serif;
+    }
+
+    .expansion-stage .stage-num {
+      font: 700 13px/1 Georgia, serif;
+      color: var(--muted);
+    }
+
+    .expansion-stage h3 {
+      font-size: clamp(29px, 2.5vw, 46px);
+      line-height: 1.08;
+    }
+
+    .expansion-stage p {
+      position: relative;
+      z-index: 1;
+      color: var(--body);
+      font-size: clamp(13px, 1vw, 18px);
+      line-height: 1.58;
+      max-width: 24ch;
+    }
+
+    .expansion-stage .owner {
+      position: relative;
+      z-index: 1;
+      color: var(--muted);
+      font-size: clamp(10px, .75vw, 13px);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    /* PM shifts */
+    .shift-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(18px, 2vw, 30px);
+    }
+
+    .shift {
+      min-height: clamp(400px, 50vh, 540px);
+      padding: clamp(26px, 2.6vw, 44px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 26px;
+    }
+
+    .shift-label {
+      color: var(--muted);
+      font-size: clamp(10px, .78vw, 14px);
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .shift h3 {
+      font-size: clamp(30px, 2.65vw, 48px);
+      line-height: 1.08;
+    }
+
+    .from-to {
+      display: grid;
+      gap: 10px;
+    }
+
+    .from-to .from {
+      color: var(--muted);
+      text-decoration: line-through;
+      text-decoration-thickness: 1px;
+      font-size: clamp(14px, 1.05vw, 19px);
+    }
+
+    .from-to .to {
+      color: var(--green);
+      font-size: clamp(20px, 1.7vw, 30px);
+      font-weight: 760;
+      line-height: 1.35;
+    }
+
+    .shift p {
+      color: var(--body);
+      font-size: clamp(13px, .98vw, 17px);
+      line-height: 1.58;
+    }
+
+    /* Final */
+    .final-quote {
+      max-width: none;
+      font-family: "Songti SC", "STSong", "Noto Serif CJK SC", Georgia, serif;
+      font-size: clamp(44px, 4.2vw, 78px);
+      line-height: 1.16;
+      font-weight: 700;
+      letter-spacing: -.055em;
+    }
+
+    .final-bottom {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 36px;
+      padding-top: 28px;
+      border-top: 1px solid var(--line-strong);
+    }
+
+    .final-bottom p {
+      max-width: 44ch;
+      color: var(--body);
+      font-size: clamp(16px, 1.25vw, 22px);
+      line-height: 1.55;
+    }
+
+    .qa {
+      color: var(--green);
+      font: italic 700 clamp(38px, 4vw, 70px)/1 Georgia, serif;
+    }
+
+    /* Global controls */
+    .deck-progress {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 4px;
+      z-index: 80;
+      background: rgba(23,25,22,.1);
+    }
+
+    .deck-progress > i {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--green);
+      transition: width .38s var(--ease);
+    }
+
+    .deck-controls {
+      position: fixed;
+      left: 50%;
+      bottom: 15px;
+      z-index: 75;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid rgba(23,25,22,.14);
+      border-radius: 16px;
+      background: rgba(249,248,244,.86);
+      box-shadow: 0 12px 38px rgba(30,31,25,.12);
+      backdrop-filter: blur(16px);
+      opacity: .28;
+      transition: opacity .2s ease;
+    }
+
+    .deck-controls:hover,
+    .deck-controls:focus-within { opacity: 1; }
+
+    .deck-controls button {
+      min-width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--body);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-weight: 780;
+    }
+
+    .deck-controls button:hover { background: rgba(23,25,22,.075); }
+
+    .control-sep {
+      width: 1px;
+      height: 22px;
+      background: var(--line);
+      margin: 0 3px;
+    }
+
+    .counter,
+    .timer,
+    .planned-time {
+      min-width: 66px;
+      padding: 0 8px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: .06em;
+    }
+
+    .timer {
+      min-width: 94px;
+      color: var(--green);
+      font-weight: 760;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .timer.is-running::before {
+      content: "●";
+      margin-right: 6px;
+      color: var(--rust);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse { 50% { opacity: .25; } }
+
+    .corner-hint {
+      position: fixed;
+      right: 22px;
+      bottom: 20px;
+      z-index: 72;
+      color: rgba(23,25,22,.36);
+      font-size: 10px;
+      letter-spacing: .05em;
+      user-select: none;
+    }
+
+    .notes-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 120;
+      width: min(470px, 42vw);
+      padding: 32px;
+      transform: translateX(102%);
+      transition: transform .35s var(--ease);
+      background: rgba(250,249,246,.98);
+      border-left: 1px solid var(--line);
+      box-shadow: -30px 0 70px rgba(26,27,22,.12);
+      overflow-y: auto;
+    }
+
+    .notes-panel.is-open { transform: translateX(0); }
+
+    .notes-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .notes-head h2 { font-size: 22px; }
+
+    .notes-head button {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .notes-body {
+      padding-top: 24px;
+      color: var(--body);
+      font-size: 15px;
+      line-height: 1.72;
+    }
+
+    .notes-body p + p,
+    .notes-body p + ul,
+    .notes-body ul + p { margin-top: 16px; }
+
+    .notes-body ul { padding-left: 20px; }
+    .notes-body li + li { margin-top: 8px; }
+
+    .help {
+      position: fixed;
+      inset: 0;
+      z-index: 130;
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .2s ease, visibility .2s;
+      background: rgba(19,21,18,.54);
+      backdrop-filter: blur(10px);
+    }
+
+    .help.is-open { opacity: 1; visibility: visible; }
+
+    .help-card {
+      width: min(620px, calc(100vw - 40px));
+      padding: 34px;
+      border-radius: 24px;
+      background: var(--paper-2);
+      box-shadow: var(--shadow);
+    }
+
+    .help-card h2 { font-size: 28px; margin-bottom: 20px; }
+
+    .shortcuts {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .shortcut {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--body);
+      font-size: 14px;
+    }
+
+    .shortcut kbd {
+      min-width: 34px;
+      padding: 5px 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: white;
+      box-shadow: 0 2px 0 rgba(23,25,22,.12);
+      text-align: center;
+      font: 700 12px/1.2 ui-monospace, monospace;
+    }
+
+    @media (max-aspect-ratio: 4/3) {
+      .slide-inner { padding-left: 46px; padding-right: 46px; }
+      .slide-top { left: 46px; right: 46px; }
+      .display { font-size: clamp(48px, 7vw, 92px); }
+      .cover-main { grid-template-columns: minmax(0, 1.35fr) minmax(240px, .65fr); gap: 42px; }
+      .contrast-grid { grid-template-columns: .85fr 1.15fr; }
+      .loop-stage { grid-template-columns: 1fr; }
+      .loop-copy { grid-template-columns: 1fr 1fr; gap: 20px; }
+      .loop-copy .big-eq { grid-column: 1 / -1; }
+      .loop-map { min-height: 460px; }
+      .arch-shell { grid-template-columns: 1fr 28px 1fr 28px 1.1fr 28px 1fr; }
+      .trace-step p { font-size: 11px; }
+    }
+
+    @media (max-width: 980px), (max-height: 680px) {
+      .slide-inner { padding: 50px 36px 64px; gap: 18px; }
+      .slide-top { left: 36px; right: 36px; top: 20px; }
+      .cover-main { grid-template-columns: minmax(0, 1.3fr) minmax(210px, .7fr); gap: 28px; }
+      .cover-aside { padding-left: 18px; }
+      .old-flow { flex-wrap: wrap; white-space: normal; }
+      .visible-ui, .hidden-world { min-height: 340px; }
+      .loop-map { min-height: 430px; }
+      .arch-shell { min-height: 430px; }
+      .trace-step { min-height: 240px; }
+      .decision, .shift { min-height: 340px; }
+      .flux-decision { min-height: 360px; }
+      .deck-controls { bottom: 9px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="deck" aria-live="polite">
+
+    <!-- 01 · Cover -->
+    <section class="slide cover is-active" data-section="开场" data-at="00:00–01:00" aria-label="三年 Agent 产品实践与思考">
+      <div class="slide-inner">
+        <div class="cover-topline">
+          <span>Internal Product Share · 30 min</span>
+          <span>Three years of Agent practice</span>
+        </div>
+        <div class="cover-main">
+          <div>
+            <p class="eyebrow" style="margin-bottom:22px;">三年 Agent 产品实践与思考</p>
+            <h1 class="display">当功能都进入<br><span class="green">一个对话框</span>，<br>产品经理还要设计什么？</h1>
+          </div>
+          <aside class="cover-aside">
+            <span class="aside-kicker">The change</span>
+            <strong>用户不再寻找和操作功能，<br>而是直接表达目的。</strong>
+            <p>他说的可能只有一句：<br><strong>“我想完成这件事。”</strong></p>
+          </aside>
+        </div>
+        <div class="cover-bottomline cover-shift" aria-label="从操作功能到表达目的">
+          <span class="shift-source">页面 · 按钮 · 表单 · 流程</span>
+          <span class="shift-arrow">→</span>
+          <span class="shift-target">“帮我完成这件事”</span>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>今天我想借过去三年做 Agent 产品的几段经历，跟大家分享一些实际的工作经验，以及我对 AI 产品逐渐形成的一点认知。</p>
+        <p>这几年有一个很明显的变化：越来越多原本分散在页面、按钮和流程里的功能，正在被放进一个对话框。</p>
+        <p>过去，用户要找到正确的入口，理解页面和流程，再一步步完成操作。现在，用户可能不再关心功能在哪里，只需要说一句：“我想完成这件事。”</p>
+        <p>这会带来今天最想讨论的问题：当用户只需要表达目的，产品经理还需要设计什么？</p>
+        <p>按右方向键或空格继续；这套稿件有分步出现。N 键可以打开当前页讲稿，T 键开始计时。</p>
+      </aside>
+    </section>
+
+    <!-- 02 · Thesis -->
+    <section class="slide" data-section="开场判断" data-at="01:00–03:00" aria-label="对话框只是入口">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">开场判断</span><span class="slide-index">01 / Thesis</span></div>
+        <div class="contrast-grid">
+          <article class="visible-ui card">
+            <div>
+              <span class="tag blue-tag">交互方式的变化</span>
+              <h2 class="headline" style="margin-top:18px;">用户从“操作功能”，<br>变成“表达目的”。</h2>
+            </div>
+            <div class="interaction-shift">
+              <div class="old-flow" aria-label="过去由用户完成的操作流程">
+                <span class="mode-label">过去</span>
+                <span>找入口</span><i>→</i><span>填信息</span><i>→</i><span>选参数</span><i>→</i><span>判断下一步</span>
+              </div>
+              <div class="collapse-copy">功能被收进对话框</div>
+              <div class="mini-window">
+                <div class="mini-window-head"><i></i><i></i><i></i></div>
+                <div class="prompt-box">
+                  <span>帮我完成这个需求，并保证相关测试通过。</span>
+                  <div class="send-row"><span>现在 · 一句话表达目的</span><span class="send-dot">↑</span></div>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="hidden-world card">
+            <div class="world-node fragment"><b>理解意图</b><span>目标、边界、成功标准</span></div>
+            <div class="world-node fragment"><b>组织 Context</b><span>知识、历史、当前环境</span></div>
+            <div class="world-node fragment"><b>拆解任务</b><span>计划、依赖、角色分工</span></div>
+            <div class="world-node fragment"><b>工具与权限</b><span>能做什么，什么要确认</span></div>
+            <div class="world-node center fragment"><b>任务执行环境</b><span>人看不见，但决定结果</span></div>
+            <div class="world-node fragment"><b>异常恢复</b><span>失败、重试、降级、接管</span></div>
+            <div class="world-node fragment"><b>测试与验证</b><span>如何证明真的做完</span></div>
+            <div class="world-node fragment"><b>交付与 Handoff</b><span>产物、状态、待确认项</span></div>
+            <div class="world-node fragment"><b>反馈回流</b><span>Bad case 如何变成改进</span></div>
+          </article>
+        </div>
+        <div class="contrast-thesis fragment">
+          <h2>对话框只是入口，<span class="green nowrap">任务执行环境才是主体。</span></h2>
+          <span class="tag">从一句话，直到任务真正完成</span>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>但从“说一句话”到“事情真的完成”，中间还有大量工作：理解目标、补齐信息、选择路径、调用工具、处理权限、面对失败，以及判断结果能不能交付。</p>
+        <p>这些工作没有随着页面消失。它们只是从用户看得见的页面和操作流程，转移到了用户看不见的系统内部。</p>
+        <p>所以我这几年越来越明确的判断是：对话框只是 Agent 产品的入口，任务执行环境才是 Agent 产品真正的主体，也会成为产品经理越来越核心的设计对象。</p>
+        <p>为了把这个判断说清楚，在正式讲项目之前，我们先把这句用户输入往下展开：从一句话到最终结果，中间到底发生了什么？</p>
+      </aside>
+    </section>
+
+    <!-- 03 · Agent loop -->
+    <section class="slide" data-section="共同地图" data-at="03:00–06:00" aria-label="一次 Agent 任务如何运行">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">一次任务的幕后</span><span class="slide-index">02 / Agent Loop</span></div>
+        <div class="loop-stage">
+          <div class="loop-map">
+            <article class="loop-node n1 fragment"><span class="num">01 · INPUT</span><b>用户表达需求</b><span>一句话只是入口</span></article>
+            <article class="loop-node n2 fragment"><span class="num">02 · DEFINE</span><b>任务定义</b><span>目标 / 边界 / 成功标准</span></article>
+            <article class="loop-node n3 fragment"><span class="num">03 · PACK</span><b>Context 组装</b><span>指令 / 历史 / 知识 / 环境</span></article>
+            <article class="loop-node n4 fragment"><span class="num">04 · DECIDE</span><b>判断下一步</b><span>回答、追问、调用工具，或请求确认</span></article>
+            <article class="loop-node n5 fragment"><span class="num">05 · ACT</span><b>执行行动</b><span>工具在真实环境中做事</span></article>
+            <article class="loop-node n6 fragment"><span class="num">06 · OBSERVE</span><b>接收反馈</b><span>成功与失败都重新写回 Context</span></article>
+            <article class="loop-node n7 fragment"><span class="num">07 · STOP / DELIVER</span><b>验证并交付</b><span>满足结束条件，才交还控制权</span></article>
+          </div>
+          <div class="loop-copy">
+            <p class="eyebrow">The simplest useful mental model</p>
+            <h2 class="display small">用户只说一句话，<br>Agent 到底经历了什么？</h2>
+            <div class="big-eq fragment">Agent ≠ 一次调用模型<br><span class="green">Agent = 观察 → 判断 → 行动 → 再观察</span></div>
+            <ul>
+              <li class="fragment">模型并不“记得”刚才发生了什么；每一轮都要重新组织它能看到的内容。</li>
+              <li class="fragment">工具失败不是旁路，而是帮助 Agent 修正下一步的主反馈通道。</li>
+              <li class="fragment">模型说“做完了”不等于任务完成；测试、规则和人工确认仍可把它打回。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>在进入项目之前，先用几分钟对齐一张地图。用户发出一句话以后，系统先定义任务，再组装模型能看到的全部内容。</p>
+        <p>模型每次只判断下一步：答、问，还是调用工具。工具把真实环境的结果写回来，系统再重新问模型。这个循环一直持续到满足结束条件。</p>
+        <p>强调三个点：Agent 不是一次模型调用；失败结果是纠正回路的一部分；模型说完成不代表真的完成。</p>
+      </aside>
+    </section>
+
+    <!-- 04 · Control surface -->
+    <section class="slide" data-section="共同地图" data-at="06:00–08:30" aria-label="产品经理可以设计什么">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">产品可控面</span><span class="slide-index">03 / Control Surface</span></div>
+        <div class="surface-wrap">
+          <div class="surface-intro">
+            <div>
+              <p class="eyebrow">Not only prompting</p>
+              <h2 class="display small" style="margin-top:14px;">产品经理可以设计的，<br><span class="green">不只是 Prompt。</span></h2>
+            </div>
+            <div class="certainty">
+              <div class="green"><b>直接设计</b><span>任务、Context、工具、规则、评测</span></div>
+              <div class="amber"><b>间接影响</b><span>理解、规划、生成的稳定性</span></div>
+              <div class="rust"><b>管理不确定性</b><span>含糊输入、脏数据、外部失败</span></div>
+            </div>
+          </div>
+          <div class="control-stack">
+            <article class="control-row soft-card fragment"><span class="index">01</span><b>任务定义</b><p>它到底要完成什么？边界和成功标准是什么？</p></article>
+            <article class="control-row soft-card fragment"><span class="index">02</span><b>Context</b><p>在什么时机，让它看到哪些指令、知识、历史与环境状态？</p></article>
+            <article class="control-row soft-card fragment"><span class="index">03</span><b>Action Space</b><p>允许使用哪些工具、读取哪些数据、哪些动作必须确认？</p></article>
+            <article class="control-row soft-card fragment"><span class="index">04</span><b>Loop / Orchestration</b><p>什么时候重试、换路、追问、并发、停下或交给人？</p></article>
+            <article class="control-row soft-card fragment"><span class="index">05</span><b>Feedback</b><p>如何判断完成？线上失败如何进入评测并变成下一轮改进？</p></article>
+          </div>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>这张地图不是为了教框架，而是为了知道效果不好时应该去哪里找问题。</p>
+        <p>产品可以直接设计五件事：目标、Context、行动空间、循环规则和反馈。模型具体会怎么理解、怎么规划，我们只能间接影响；用户含糊、数据缺失、第三方失败则只能管理，无法消除。</p>
+        <p>后面的项目案例，基本都可以落到这五个控制面上。</p>
+      </aside>
+    </section>
+
+    <!-- 05 · Aime chapter -->
+    <section class="slide chapter" data-section="Aime" data-at="08:30–09:30" aria-label="Aime 项目问题">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">Case 01 · Aime</span><span class="slide-index">04 / Individual Task</span></div>
+        <div class="chapter-grid">
+          <div class="chapter-number">01</div>
+          <div class="chapter-copy">
+            <span class="tag blue-tag">字节内部通用 Agent 产品</span>
+            <h2 class="display medium">模型已经会写代码了，<br>为什么仍然<span class="rust nowrap">交付不了</span><br>一个需求？</h2>
+            <div class="chapter-answer fragment">
+              <p>因为代码生成只是 Loop 中的一次 Action。任务真正结束之前，还有环境、测试、验证、调试、失败恢复和 Handoff。</p>
+              <div class="chapter-metrics">
+                <div><strong>7.5 万</strong><span>周活跃用户</span></div>
+                <div><strong>90%</strong><span>研发群体覆盖</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>Aime 是面向字节研发群体的通用 Agent，最后做到周活 7.5 万、覆盖 90% 的研发群体。</p>
+        <p>但今天不重点讲规模，而讲一个更本质的问题：模型已经能写出不错的代码，为什么用户仍然不能把一个需求完整交给它？</p>
+        <p>后来我们发现，生成代码只是一次 Action。产品要解决的是“事情能不能真正做完”。</p>
+      </aside>
+    </section>
+
+    <!-- 06 · Aime architecture -->
+    <section class="slide" data-section="Aime" data-at="09:30–12:00" aria-label="Aime 任务执行环境">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">Aime · 任务执行环境</span><span class="slide-index">05 / Architecture</span></div>
+        <div>
+          <p class="eyebrow">A product view, not a deployment topology</p>
+          <h2 class="headline" style="margin-top:10px; max-width:30ch;">模型是“大脑”；Aime 设计的是一套<br><span class="blue">让大脑真正工作的环境。</span></h2>
+        </div>
+        <div class="arch-shell">
+          <article class="arch-column blue-col fragment">
+            <div class="arch-kicker"><span>01</span><span>入口</span></div>
+            <h3>用户任务</h3>
+            <div class="arch-item"><b>主站 / IDE</b><span>直接派活、看过程</span></div>
+            <div class="arch-item"><b>飞书 / 自动化</b><span>随时入口、事件拉起</span></div>
+            <div class="arch-item"><b>问答 / 办事分流</b><span>回答问题还是必须交付</span></div>
+          </article>
+          <div class="arch-arrow">→</div>
+          <article class="arch-column purple-col fragment">
+            <div class="arch-kicker"><span>02</span><span>任务与 Context</span></div>
+            <h3>规划者</h3>
+            <div class="arch-item"><b>定义任务</b><span>目标、边界、成功标准</span></div>
+            <div class="arch-item"><b>构建 Context</b><span>仓库、文档、工作项、历史</span></div>
+            <div class="arch-item"><b>拆解与调度</b><span>串行、并行、向人追问</span></div>
+          </article>
+          <div class="arch-arrow">→</div>
+          <article class="arch-column green-col fragment">
+            <div class="arch-kicker"><span>03</span><span>执行与生态</span></div>
+            <h3>动态 Worker</h3>
+            <div class="arch-item worker"><b>探代码 / 实现 / 调研</b><span>按任务组装不同执行者</span></div>
+            <div class="arch-item worker"><b>Skills</b><span>教它“这类事应该怎么做”</span></div>
+            <div class="arch-item worker"><b>MCP / 工具</b><span>让它“真正碰到外部系统”</span></div>
+            <div class="arch-item worker"><b>本地 / 云端 Handoff</b><span>任务在合适的环境继续</span></div>
+          </article>
+          <div class="arch-arrow">→</div>
+          <article class="arch-column amber-col fragment">
+            <div class="arch-kicker"><span>04</span><span>环境与交付</span></div>
+            <h3>Harness</h3>
+            <div class="arch-item"><b>云工作区</b><span>文件、终端、浏览器、依赖</span></div>
+            <div class="arch-item"><b>测试 / 验证</b><span>客观真值和结束条件</span></div>
+            <div class="arch-item"><b>调试 / 日志</b><span>失败原因重新进入 Loop</span></div>
+            <div class="arch-item"><b>产物 / Handoff</b><span>代码、文档、预览与风险</span></div>
+          </article>
+          <div class="feedback-loop fragment">执行结果与环境反馈，重新进入规划</div>
+        </div>
+        <div class="arch-footer">
+          <span><strong>信息流：</strong>用户任务 → Context → 决策 → 执行 → 反馈 → 再决策</span>
+          <span>这张图只回答三件事：看见什么 · 能做什么 · 怎么知道做完</span>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>这不是服务部署图，只讲产品视角的信息流。</p>
+        <p>用户可以从主站、IDE、飞书或自动化入口派活。规划者定义任务、构建 Context、拆分步骤，再动态调度 Worker。Skills 教做法，MCP 和工具让它碰到真实系统。</p>
+        <p>最关键的是右边：云环境、测试、验证、调试和产物。环境结果会重新进入规划，直到真正满足交付条件。</p>
+      </aside>
+    </section>
+
+    <!-- 07 · Aime task trace -->
+    <section class="slide" data-section="Aime" data-at="12:00–15:30" aria-label="Aime 典型任务链">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">Aime · 一条脱敏任务链</span><span class="slide-index">06 / Trace</span></div>
+        <div>
+          <p class="eyebrow">A failure is not the end; it is new context</p>
+          <h2 class="headline" style="margin-top:10px;">一次“真正交付”，中间发生了什么？</h2>
+        </div>
+        <div class="task-brief card">
+          <span class="avatar">YOU</span>
+          <p>“根据需求改造一个接口，并保证相关测试通过。”</p>
+          <span class="tag" style="margin-left:auto;">脱敏后的典型链路</span>
+        </div>
+        <div class="trace">
+          <article class="trace-step fragment">
+            <span class="trace-dot">01</span><h3>定义完成标准</h3><p>先把“改完”翻译成 Spec、范围和必须通过的检查。</p><span class="lever">TASK</span>
+          </article>
+          <article class="trace-step fragment">
+            <span class="trace-dot">02</span><h3>组装 Context</h3><p>拉取工作项、仓库、相关文档、团队规范和历史状态。</p><span class="lever">CONTEXT</span>
+          </article>
+          <article class="trace-step fragment">
+            <span class="trace-dot">03</span><h3>拆解并派工</h3><p>探代码、方案、实现和验证，可以串行，也可以并行。</p><span class="lever">LOOP</span>
+          </article>
+          <article class="trace-step fragment">
+            <span class="trace-dot">04</span><h3>进入环境执行</h3><p>Worker 改文件、跑命令，并调用研发工具链。</p><span class="lever">ACTION</span>
+          </article>
+          <article class="trace-step fail fragment">
+            <span class="trace-dot">05</span><h3>第一次测试失败</h3><p>失败原因不是丢掉，而是作为工具结果重新写回 Context。</p><span class="lever">FEEDBACK</span>
+          </article>
+          <article class="trace-step fragment">
+            <span class="trace-dot">06</span><h3>定位、修改、重跑</h3><p>规划者根据新证据换路；必要时追问或请求人接管。</p><span class="lever">RECOVER</span>
+          </article>
+          <article class="trace-step done fragment">
+            <span class="trace-dot">07</span><h3>验证通过并交付</h3><p>代码、测试结果、产物和剩余风险一起 Handoff。</p><span class="lever">DELIVER</span>
+          </article>
+        </div>
+        <div class="trace-insight fragment">
+          <strong>关键不是“一次成功”</strong>
+          <p>而是系统能不能看见失败、理解失败，并在可控边界里恢复——这才是长任务真正的产品体验。</p>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>用一条脱敏的典型任务把架构跑起来。用户说“改造接口并保证测试通过”。系统首先要把“做完”变成可判断的标准。</p>
+        <p>随后组织 Context、拆解任务、派 Worker 到云环境里执行。重点停在第五步：第一次测试失败。失败不是事故旁路，而是重新规划最重要的新证据。</p>
+        <p>Agent 根据失败定位、修改、重跑，最后把代码、测试结果和风险一起交给用户。真正值得讲的是它如何失败和恢复，而不是 Demo 里的一次成功。</p>
+      </aside>
+    </section>
+
+    <!-- 08 · Aime decisions -->
+    <section class="slide" data-section="Aime" data-at="15:30–18:00" aria-label="Aime 三个产品取舍">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">Aime · 关键取舍</span><span class="slide-index">07 / Product Decisions</span></div>
+        <div>
+          <p class="eyebrow">Three choices that shaped the product</p>
+          <h2 class="headline" style="margin-top:10px; max-width:none;">真正决定产品形态的，<br>不是做了哪些功能，<br>而是<span class="blue nowrap">在哪里承接不确定性。</span></h2>
+        </div>
+        <div class="decision-grid">
+          <article class="decision card fragment" data-num="1">
+            <div>
+              <span class="tag blue-tag">交付</span>
+              <h3 style="margin-top:20px;">继续优化生成，还是补齐任务闭环？</h3>
+            </div>
+            <div class="versus"><span>更好的回答 / 代码</span><span>↓ 我们选择</span><span class="chosen">测试、验证、调试 Harness</span></div>
+            <p>继续提高“写得像不像”只是在优化一个节点。生产可用的关键，是写完以后能不能被验证并交付。</p>
+            <span class="tradeoff">代价：建设更重、更慢；收益：成功标准从主观好感变成客观结果。</span>
+          </article>
+          <article class="decision card fragment" data-num="2">
+            <div>
+              <span class="tag green-tag">扩展</span>
+              <h3 style="margin-top:20px;">每个场景硬编码，还是建设能力生态？</h3>
+            </div>
+            <div class="versus"><span>核心团队把能力全部做死</span><span>↓ 我们选择</span><span class="chosen">Skills 教方法 · MCP 接工具</span></div>
+            <p>业务知识和做事方法可以持续沉淀，真实工具也能不断接入；Agent 根据任务动态组装 Worker。</p>
+            <span class="tradeoff">边界：Skill 解决“怎么做”，MCP 解决“手够不够得着”，两者不能互相替代。</span>
+          </article>
+          <article class="decision card fragment" data-num="3">
+            <div>
+              <span class="tag rust-tag">可控</span>
+              <h3 style="margin-top:20px;">完全自治，还是设计阶段性 Handoff？</h3>
+            </div>
+            <div class="versus"><span>让 Agent 一直跑到自称完成</span><span>↓ 我们选择</span><span class="chosen">SDD + 确认点 + 本地/云端接力</span></div>
+            <p>长任务不是简单地让 Agent 跑得更久，而是明确什么时候对齐方案、何时并发、何时确认、何时交还给人。</p>
+            <span class="tradeoff">取舍：自由度越高越灵活；责任越重，越需要收紧动作空间和验证门。</span>
+          </article>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>Aime 最值得复盘的是三个选择。</p>
+        <p>第一，从继续卷生成质量转向补齐测试、验证、调试的闭环。第二，不为每个场景重做 Agent，而用 Skills 和 MCP 建设可扩展生态。第三，不迷信完全自治，通过 SDD、确认点和 Handoff 管理风险。</p>
+        <p>规模指标证明用户愿意来，但真正的产品指标还要看任务成功、返工、重试和中途接管。这一点也会引出 Flux。</p>
+      </aside>
+    </section>
+
+    <!-- 09 · Flux transition -->
+    <section class="slide chapter" data-section="Flux" data-at="18:00–18:40" aria-label="Flux 项目问题">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">Case 02 · Flux</span><span class="slide-index">08 / Team Task</span></div>
+        <div class="local-optimum">
+          <div class="personal-loop fragment">
+            <div><strong>Aime</strong><span>一个人 + Agent<br>个人任务闭环</span></div>
+          </div>
+          <div class="not-equal fragment">≠</div>
+          <div>
+            <span class="tag green-tag">新的反直觉问题</span>
+            <h2 class="display small" style="margin-top:22px; max-width:none;">人人都在用 Agent，<br>为什么组织交付<br><span class="rust nowrap">没有同比例变快？</span></h2>
+          </div>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>Aime 解决了个人怎么把任务交给 Agent。覆盖绝大部分研发之后，我们原本以为组织交付也会自然提升。</p>
+        <p>但出现了一个反直觉现象：大家写代码越来越快，需求从提出到上线却没有同比例变快。于是问题从个人 Loop 扩大到组织 Loop。</p>
+      </aside>
+    </section>
+
+    <!-- 10 · Bottleneck transfer -->
+    <section class="slide" data-section="Flux" data-at="18:40–21:00" aria-label="瓶颈发生转移">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">Flux · 立项洞察</span><span class="slide-index">09 / Bottleneck Transfer</span></div>
+        <div>
+          <p class="eyebrow">Local optimization is not system optimization</p>
+          <h2 class="headline" style="margin-top:10px; max-width:32ch;">个人提效 ≠ 组织提效，<br><span class="rust">瓶颈只是在价值链上移动。</span></h2>
+        </div>
+        <div class="value-chain">
+          <article class="chain-step fragment"><span class="chain-num">01</span><h3>产品</h3><p>问题定义、需求澄清、业务 Context</p><div class="queue"><i></i><i></i><i></i><i></i></div></article>
+          <article class="chain-step fragment"><span class="chain-num">02</span><h3>设计</h3><p>交互、状态、素材与设计产物</p><div class="queue"><i></i><i></i><i></i></div></article>
+          <article class="chain-step dev fragment"><span class="chain-num">03</span><h3>研发</h3><p>Agent 写代码已经成为高频工作方式</p><div class="queue" style="opacity:.28;"><i></i></div></article>
+          <article class="chain-step fragment"><span class="chain-num">04</span><h3>测试</h3><p>接口、GUI、造数、回归仍有大量断点</p><div class="queue"><i></i><i></i><i></i><i></i><i></i></div></article>
+          <article class="chain-step fragment"><span class="chain-num">05</span><h3>上线</h3><p>调试、发布、责任节点与最终验证</p><div class="queue"><i></i><i></i><i></i></div></article>
+        </div>
+        <div class="chain-finding">
+          <div class="finding soft-card fragment"><b>上</b><span>产品与设计的产出，不能直接成为下游 Agent 的 Context。</span></div>
+          <div class="finding soft-card fragment"><b>下</b><span>测试与验证 Harness 没补齐，代码写得快也排队。</span></div>
+          <div class="finding soft-card fragment"><b>数</b><span>Token 和使用量证明“在用”，不能直接证明“交付更快”。</span></div>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>把需求价值链摊开看，研发环节被 Agent 显著加速，但上游产品和设计的产物并没有自然变成可消费的 Context，下游测试、造数、GUI 验证、调试和上线仍然断裂。</p>
+        <p>这就是木桶效应：局部环节越快，等待越集中到其他环节。Token 消耗、周活都只是领先指标，最终还要看需求流转和交付周期。</p>
+      </aside>
+    </section>
+
+    <!-- 11 · Flux environment -->
+    <section class="slide" data-section="Flux" data-at="21:00–23:30" aria-label="Flux 团队任务执行环境">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">Flux · 方案</span><span class="slide-index">10 / Team Environment</span></div>
+        <div style="display:flex; justify-content:space-between; align-items:end; gap:30px;">
+          <div>
+            <p class="eyebrow">From one loop to a team loop</p>
+            <h2 class="headline" style="margin-top:10px; max-width:31ch;">把一个人的 Loop，<br><span class="green">扩成一个团队的任务执行环境。</span></h2>
+          </div>
+          <span class="tag green-tag">共享信息 · 调度 Agent · 闭环交付</span>
+        </div>
+        <div class="flux-env">
+          <div class="role-row fragment">
+            <div class="role"><b>产品</b><span>问题、需求、验收目标</span></div>
+            <div class="role"><b>设计</b><span>交互、状态、视觉产物</span></div>
+            <div class="role"><b>研发</b><span>方案、代码、实现约束</span></div>
+            <div class="role"><b>测试</b><span>用例、验证、质量门</span></div>
+          </div>
+          <div class="shared-context fragment">
+            <h3>共享 Context<br><span style="font-size:.52em; color:var(--body); font-weight:600;">共同产物不是附件，而是下一棒的工作现场</span></h3>
+            <div class="context-assets"><span>需求 / Spec</span><span>设计稿</span><span>决策记录</span><span>代码变更</span><span>测试结果</span><span>任务状态</span><span>风险与待确认</span></div>
+          </div>
+          <div class="agent-row fragment">
+            <div class="agent-box"><b>统一调度 <strong>Codex</strong></b><span>沿用用户已经形成的习惯</span></div>
+            <div class="agent-box"><b>统一调度 <strong>Claude Code</strong></b><span>能力跟随 SOTA 边界演进</span></div>
+            <div class="agent-box"><b>其他专业 Agent</b><span>按任务与上下文选择合适执行者</span></div>
+          </div>
+          <div class="harness-row fragment">
+            <div class="harness-box"><b>Spec Driven</b><span>先对齐再动手</span></div>
+            <div class="harness-box"><b>测试 / 造数</b><span>接口与场景验证</span></div>
+            <div class="harness-box"><b>调试 / LogID</b><span>失败定位与恢复</span></div>
+            <div class="harness-box"><b>部署 / 上线</b><span>后链路真正闭环</span></div>
+          </div>
+        </div>
+        <div class="flux-caption">
+          <span><strong>Aime：</strong>设计一个人的任务环境　→　<strong>Flux：</strong>设计人、Agent 与组织共同工作的环境</span>
+          <span class="metric-caveat">周活破万是领先指标，不是终点</span>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>Flux 的方案分三层。第一层是共享 Context，让产品、设计、研发和测试的产物成为同一个工作现场，而不是散落的附件。</p>
+        <p>第二层不是再造一个 Agent，而是统一调度 Codex、Claude Code 等成熟 Agent。第三层补齐 Spec、测试、造数、调试和部署 Harness。</p>
+        <p>原来优化的是模型与工具之间的 Loop；现在优化的是人、Agent 和组织之间的 Loop。</p>
+      </aside>
+    </section>
+
+    <!-- 12 · Flux decisions -->
+    <section class="slide" data-section="Flux" data-at="23:30–26:00" aria-label="Flux 两个关键决策">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">Flux · 关键取舍</span><span class="slide-index">11 / Product Decisions</span></div>
+        <div>
+          <p class="eyebrow">Trust before magic; leverage before reinvention</p>
+          <h2 class="headline" style="margin-top:10px; max-width:31ch;">组织协作产品里，<br>“更聪明”未必是<span class="green">更好的第一步。</span></h2>
+        </div>
+        <div class="flux-decisions">
+          <article class="flux-decision card fragment">
+            <div>
+              <span class="tag green-tag">决策 01 · 预期管理</span>
+              <h3 style="margin-top:18px;">先做“聪明的协作助理”吗？</h3>
+            </div>
+            <div class="choice-row"><div class="choice">主动催办、识别阻塞、帮团队协调一切</div><div class="choice-vs">vs</div><div class="choice selected">简单可靠的共享 Context 与协作空间</div></div>
+            <p>协作助理属于“没有无所谓，做不好就会伤害信任”的能力。先把简单但确定的事情做好，让产品建立专业预期。</p>
+            <div class="reasons"><span>低误伤</span><span>可解释</span><span>可验证</span><span>先建立信任</span></div>
+          </article>
+          <article class="flux-decision card fragment">
+            <div>
+              <span class="tag blue-tag">决策 02 · 生态位</span>
+              <h3 style="margin-top:18px;">要重新自研一个完整 Agent 吗？</h3>
+            </div>
+            <div class="choice-row"><div class="choice">自研模型伴生 Agent，重建用户习惯</div><div class="choice-vs">vs</div><div class="choice selected">统一编排 SOTA Agent，把精力放在协作层</div></div>
+            <p>自研起步慢，用户迁移成本真实存在，也很难长期碾压能力前沿。Flux 选择投资在共享 Context、协作和后链路 Harness。</p>
+            <div class="reasons"><span>启动速度</span><span>用户习惯</span><span>SOTA 能力</span><span>差异化资产</span></div>
+          </article>
+        </div>
+        <div class="north-star fragment"><span>领先指标</span><strong>周活破万 · 用户持续回来</strong><span class="arrow">→</span><strong>需求流转与交付周期</strong><span>终局指标</span></div>
+      </div>
+      <aside class="speaker-note">
+        <p>Flux 有两个我认为很有产品味道的决定。</p>
+        <p>第一，团队有人想先做主动协作助理。听起来更性感，但它是做不好就伤信任的能力，所以先做简单可靠的共享区。</p>
+        <p>第二，不自研完整 Agent，而是编排用户已经熟悉的 SOTA Agent。我们把差异化放在共享 Context、组织协作和研发后链路。</p>
+        <p>周活破万说明用户持续感到价值，但不能把它当终点。最终北极星仍然是需求从提出到上线的交付效率。</p>
+      </aside>
+    </section>
+
+    <!-- 13 · Synthesis -->
+    <section class="slide" data-section="回到开场" data-at="26:00–27:30" aria-label="设计对象不断扩张">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">回到开场</span><span class="slide-index">12 / Synthesis</span></div>
+        <div>
+          <p class="eyebrow">The design object keeps expanding</p>
+          <h2 class="headline" style="margin-top:10px; max-width:32ch;">页面没有消失。<br><span class="green">只是产品经理设计的对象在持续扩张。</span></h2>
+        </div>
+        <div class="expansion">
+          <article class="expansion-stage fragment" data-big="UI">
+            <span class="stage-num">01</span>
+            <h3>设计页面</h3>
+            <p>我们设计用户看到什么、点什么，以及如何一步步亲自完成任务。</p>
+            <span class="owner">USER COMPLETES THE TASK</span>
+          </article>
+          <article class="expansion-stage fragment" data-big="AI">
+            <span class="stage-num">02 · AIME</span>
+            <h3>设计个人任务环境</h3>
+            <p>我们设计 Agent 如何理解目标、组织 Context、使用工具、恢复失败并证明交付。</p>
+            <span class="owner">AGENT COMPLETES THE TASK</span>
+          </article>
+          <article class="expansion-stage fragment" data-big="ORG">
+            <span class="stage-num">03 · FLUX</span>
+            <h3>设计团队任务环境</h3>
+            <p>我们设计多个角色、多个 Agent 与多个系统，如何共享信息并完成一次业务交付。</p>
+            <span class="owner">PEOPLE + AGENTS DELIVER TOGETHER</span>
+          </article>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>讲到这里回到开场。Aime 让我意识到，我们要设计一个 Agent 如何完成一个人的任务。Flux 又把问题往外推了一层：多个角色、多个 Agent、多个系统如何共同完成一次交付。</p>
+        <p>不是页面不重要，而是产品责任范围扩大了。过去设计用户怎么做，现在还要设计系统怎么替用户做，以及团队如何围绕它工作。</p>
+      </aside>
+    </section>
+
+    <!-- 14 · PM shifts -->
+    <section class="slide" data-section="产品思考" data-at="27:30–29:15" aria-label="产品经理的三个变化">
+      <div class="slide-inner">
+        <div class="slide-top"><span class="section-name">产品经理的变化</span><span class="slide-index">13 / Takeaways</span></div>
+        <div>
+          <p class="eyebrow">Three shifts for product managers</p>
+          <h2 class="headline" style="margin-top:10px; max-width:28ch;">Agent 改变的不是一个入口，<br>而是<span class="green">产品工作的基本单位。</span></h2>
+        </div>
+        <div class="shift-grid">
+          <article class="shift card fragment">
+            <span class="shift-label">Shift 01 · 设计单位</span>
+            <h3>从功能，<br>到任务。</h3>
+            <div class="from-to"><span class="from">这个功能有哪些页面？</span><span class="to">用户究竟想完成什么？什么才算完成？</span></div>
+            <p>任务的目标、边界、成功标准和红线，开始早于页面，也决定后面的系统设计。</p>
+          </article>
+          <article class="shift card fragment">
+            <span class="shift-label">Shift 02 · 责任边界</span>
+            <h3>从交互，<br>到执行环境。</h3>
+            <div class="from-to"><span class="from">用户如何点击和流转？</span><span class="to">Agent 看见什么、能做什么、何时停下？</span></div>
+            <p>Context、工具、权限、Loop、异常恢复和验证，不再只是工程细节，而是产品体验本身。</p>
+          </article>
+          <article class="shift card fragment">
+            <span class="shift-label">Shift 03 · 衡量方式</span>
+            <h3>从使用，<br>到完成。</h3>
+            <div class="from-to"><span class="from">有多少人打开和使用？</span><span class="to">任务成功了吗？交付真的变快了吗？</span></div>
+            <p>周活和留存仍然重要，但只是必要条件；返工、接管、成功率和业务交付才是终局。</p>
+          </article>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>把结论落到产品经理身上，有三个变化。</p>
+        <p>第一，设计单位从功能和页面变成任务与成功标准。第二，责任边界从交互扩展到 Context、工具、权限、循环和验证。第三，衡量方式从有没有使用走向有没有完成、业务是否真的变快。</p>
+        <p>页面依然重要，但它只是整个产品责任的一部分。</p>
+      </aside>
+    </section>
+
+    <!-- 15 · Final -->
+    <section class="slide" data-section="收尾" data-at="29:15–30:00" aria-label="结束页">
+      <div class="slide-inner" style="justify-content:space-between; padding-top:clamp(78px,11vh,138px);">
+        <div class="slide-top"><span class="section-name">最后一句</span><span class="slide-index">14 / Closing</span></div>
+        <h1 class="final-quote">Agent 时代，<br>产品经理不是在给模型设计一个入口；<br><span class="green nowrap">而是在给任务设计一个能够完成它的世界。</span></h1>
+        <div class="final-bottom">
+          <p>页面越简单，越意味着我们把更多复杂性从用户手里接了过来，放到了系统内部。</p>
+          <span class="qa">Q&amp;A</span>
+        </div>
+      </div>
+      <aside class="speaker-note">
+        <p>最后收在一句话：Agent 时代，产品经理不是在给模型设计一个入口，而是在给任务设计一个能够完成它的世界。</p>
+        <p>页面越简单，并不代表产品越简单；它意味着我们替用户承接了更多复杂性。谢谢大家。</p>
+      </aside>
+    </section>
+
+    <div class="deck-progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+    <nav class="deck-controls" aria-label="演讲控制">
+      <button id="prevBtn" type="button" title="上一页 / 上一步（←）">←</button>
+      <span class="counter" id="counter">01 / 15</span>
+      <button id="nextBtn" type="button" title="下一步 / 下一页（→）">→</button>
+      <span class="control-sep"></span>
+      <span class="planned-time" id="plannedTime">00:00–00:30</span>
+      <span class="timer" id="timer" title="单击开始/暂停；双击归零">00:00 / 30:00</span>
+      <span class="control-sep"></span>
+      <button id="notesBtn" type="button" title="讲稿（N）">N</button>
+      <button id="fullscreenBtn" type="button" title="全屏（F）">⛶</button>
+      <button id="helpBtn" type="button" title="快捷键（?）">?</button>
+    </nav>
+
+    <div class="corner-hint">← → 翻页 / 分步 · N 讲稿 · T 计时 · F 全屏</div>
+
+    <aside class="notes-panel" id="notesPanel" aria-label="当前页讲稿">
+      <div class="notes-head"><h2>当前页讲稿</h2><button id="notesClose" type="button" aria-label="关闭讲稿">×</button></div>
+      <div class="notes-body" id="notesBody"></div>
+    </aside>
+
+    <div class="help" id="help" role="dialog" aria-modal="true" aria-label="快捷键帮助">
+      <div class="help-card">
+        <h2>演讲快捷键</h2>
+        <div class="shortcuts">
+          <div class="shortcut"><kbd>→</kbd><span>显示下一步 / 下一页</span></div>
+          <div class="shortcut"><kbd>←</kbd><span>收回一步 / 上一页</span></div>
+          <div class="shortcut"><kbd>N</kbd><span>打开或关闭讲稿</span></div>
+          <div class="shortcut"><kbd>T</kbd><span>开始或暂停计时</span></div>
+          <div class="shortcut"><kbd>F</kbd><span>进入或退出全屏</span></div>
+          <div class="shortcut"><kbd>Home</kbd><span>回到第一页</span></div>
+          <div class="shortcut"><kbd>End</kbd><span>跳到最后一页</span></div>
+          <div class="shortcut"><kbd>Esc</kbd><span>关闭面板</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const total = slides.length;
+      const revealCounts = slides.map(() => 0);
+      const counter = document.getElementById('counter');
+      const progressBar = document.getElementById('progressBar');
+      const plannedTime = document.getElementById('plannedTime');
+      const notesPanel = document.getElementById('notesPanel');
+      const notesBody = document.getElementById('notesBody');
+      const help = document.getElementById('help');
+      let current = Math.min(Math.max((parseInt(location.hash.slice(1), 10) || 1) - 1, 0), total - 1);
+
+      const fragmentsFor = (index) => Array.from(slides[index].querySelectorAll('.fragment'));
+
+      function render() {
+        slides.forEach((slide, index) => {
+          slide.classList.toggle('is-active', index === current);
+          slide.classList.toggle('is-before', index < current);
+          slide.setAttribute('aria-hidden', index === current ? 'false' : 'true');
+          const fragments = fragmentsFor(index);
+          fragments.forEach((fragment, fragmentIndex) => {
+            fragment.classList.toggle('is-visible', fragmentIndex < revealCounts[index]);
+          });
+        });
+
+        counter.textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+        progressBar.style.width = `${((current + 1) / total) * 100}%`;
+        plannedTime.textContent = slides[current].dataset.at || '';
+        const note = slides[current].querySelector('.speaker-note');
+        notesBody.innerHTML = note ? note.innerHTML : '<p>本页暂无讲稿。</p>';
+        history.replaceState(null, '', `#${current + 1}`);
+      }
+
+      function next() {
+        const fragments = fragmentsFor(current);
+        if (revealCounts[current] < fragments.length) {
+          revealCounts[current] += 1;
+        } else if (current < total - 1) {
+          current += 1;
+        }
+        render();
+      }
+
+      function prev() {
+        if (revealCounts[current] > 0) {
+          revealCounts[current] -= 1;
+        } else if (current > 0) {
+          current -= 1;
+          revealCounts[current] = fragmentsFor(current).length;
+        }
+        render();
+      }
+
+      function goTo(index, revealAll = false) {
+        current = Math.min(Math.max(index, 0), total - 1);
+        if (revealAll) revealCounts[current] = fragmentsFor(current).length;
+        render();
+      }
+
+      function toggleNotes(force) {
+        const shouldOpen = typeof force === 'boolean' ? force : !notesPanel.classList.contains('is-open');
+        notesPanel.classList.toggle('is-open', shouldOpen);
+      }
+
+      function toggleHelp(force) {
+        const shouldOpen = typeof force === 'boolean' ? force : !help.classList.contains('is-open');
+        help.classList.toggle('is-open', shouldOpen);
+      }
+
+      async function toggleFullscreen() {
+        try {
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch (_) { /* Fullscreen can be blocked by browser policy. */ }
+      }
+
+      const timer = document.getElementById('timer');
+      let elapsed = 0;
+      let timerStartedAt = 0;
+      let timerHandle = null;
+
+      function formatTime(ms) {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+      }
+
+      function paintTimer() {
+        const liveElapsed = timerHandle ? elapsed + (Date.now() - timerStartedAt) : elapsed;
+        timer.textContent = `${formatTime(liveElapsed)} / 30:00`;
+        timer.classList.toggle('is-running', Boolean(timerHandle));
+      }
+
+      function toggleTimer() {
+        if (timerHandle) {
+          elapsed += Date.now() - timerStartedAt;
+          clearInterval(timerHandle);
+          timerHandle = null;
+        } else {
+          timerStartedAt = Date.now();
+          timerHandle = setInterval(paintTimer, 250);
+        }
+        paintTimer();
+      }
+
+      function resetTimer() {
+        if (timerHandle) clearInterval(timerHandle);
+        timerHandle = null;
+        elapsed = 0;
+        paintTimer();
+      }
+
+      document.getElementById('prevBtn').addEventListener('click', prev);
+      document.getElementById('nextBtn').addEventListener('click', next);
+      document.getElementById('notesBtn').addEventListener('click', () => toggleNotes());
+      document.getElementById('notesClose').addEventListener('click', () => toggleNotes(false));
+      document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+      document.getElementById('helpBtn').addEventListener('click', () => toggleHelp());
+      timer.addEventListener('click', toggleTimer);
+      timer.addEventListener('dblclick', resetTimer);
+      help.addEventListener('click', (event) => { if (event.target === help) toggleHelp(false); });
+
+      window.addEventListener('hashchange', () => {
+        const requested = (parseInt(location.hash.slice(1), 10) || 1) - 1;
+        if (requested !== current) {
+          current = Math.min(Math.max(requested, 0), total - 1);
+          render();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        const key = event.key;
+        if (key === 'Escape') {
+          toggleNotes(false);
+          toggleHelp(false);
+          return;
+        }
+        if (help.classList.contains('is-open')) return;
+        if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(key)) {
+          event.preventDefault();
+          next();
+        } else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(key)) {
+          event.preventDefault();
+          prev();
+        } else if (key === 'Home') {
+          event.preventDefault();
+          goTo(0);
+        } else if (key === 'End') {
+          event.preventDefault();
+          goTo(total - 1, true);
+        } else if (key.toLowerCase() === 'n') {
+          toggleNotes();
+        } else if (key.toLowerCase() === 'f') {
+          toggleFullscreen();
+        } else if (key.toLowerCase() === 't') {
+          toggleTimer();
+        } else if (key === '?' || (key === '/' && event.shiftKey)) {
+          toggleHelp();
+        }
+      });
+
+      let touchStartX = null;
+      document.addEventListener('touchstart', (event) => {
+        touchStartX = event.changedTouches[0].clientX;
+      }, { passive: true });
+      document.addEventListener('touchend', (event) => {
+        if (touchStartX === null) return;
+        const delta = event.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(delta) > 60) delta < 0 ? next() : prev();
+        touchStartX = null;
+      }, { passive: true });
+
+      render();
+      paintTimer();
+    })();
+  </script>
+</body>
+</html>
